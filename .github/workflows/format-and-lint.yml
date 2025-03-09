@@ -1,0 +1,51 @@
+name: Format and Lint Code
+
+# 定义触发条件：推送代码或创建/更新拉取请求时运行
+on:
+  push:
+    branches:
+      - main  # 主分支
+  pull_request:
+    branches:
+      - main  # 针对main分支的PR
+
+jobs:
+  format-and-lint:
+    runs-on: ubuntu-latest  # 使用Ubuntu虚拟机运行
+
+    steps:
+      # 步骤1：检出代码
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}  # 确保PR分支的代码被检出
+
+      # 步骤2：设置Python环境
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # 选择你的Python版本
+
+      # 步骤3：安装代码规范化工具
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort flake8  # 安装black（格式化）、isort（整理import）、flake8（代码检查）
+
+      # 步骤4：运行isort整理import
+      - name: Run isort
+        run: isort .
+
+      # 步骤5：运行black格式化代码
+      - name: Run black
+        run: black .
+
+      # 步骤6：运行flake8检查代码风格
+      - name: Run flake8
+        run: flake8 . --max-line-length=88 --extend-ignore=E203  # 与black兼容的配置
+
+      # 步骤7：检查是否有文件被修改，并自动提交
+      - name: Auto Commit Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: Apply code formatting with black and isort"
