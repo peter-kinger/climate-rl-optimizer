@@ -132,3 +132,7 @@ dmypy.json
 
 # Temporary files
 tmp
+
+# only to ignore the files in the data document
+logs/*
+output/*
