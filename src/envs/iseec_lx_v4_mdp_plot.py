@@ -29,6 +29,7 @@ from stable_baselines3.common.env_checker import check_env
 import torch
 import random
 
+
 class IEMEnv(gym.Env):
     def __init__(self, reward_type=None, seed=0, control_start_year=2017, **kwargs):
         super(IEMEnv, self).__init__()
@@ -37,7 +38,7 @@ class IEMEnv(gym.Env):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-        
+
         # 1. 模型基础设置（只需要初始化一次的常量）
         self.simulate_time()  # 时间相关
         self.inititalize_parameters()  # 物理参数
@@ -46,7 +47,7 @@ class IEMEnv(gym.Env):
         # 2. gym环境设置（只需要初始化一次）
         # self.action_space = spaces.MultiDiscrete([2, 2])
         self.action_space = spaces.Discrete(4)
-        
+
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
         )
@@ -59,7 +60,7 @@ class IEMEnv(gym.Env):
         self.dt = 1
 
         # 模拟开始时间
-        self.control_start_year = control_start_year # TODO
+        self.control_start_year = control_start_year  # TODO
 
         # 环境部分
         self.steps = 0
@@ -68,7 +69,7 @@ class IEMEnv(gym.Env):
         self.fig = None
         self.ax = None
         self.lines = None
-        
+
         # run information in a dictionary
         self.data = {
             "rewards": [],  # 记录的是 episode 的 reward
@@ -78,8 +79,6 @@ class IEMEnv(gym.Env):
             "episodes": 0,
             #  'final_point': []
         }
-
-        
 
     # component of other
     @np.vectorize
@@ -165,8 +164,8 @@ class IEMEnv(gym.Env):
         # reward_threedimension_function 设定的 norm 碳临界参数
         self.eta_three = 0.1  # 三维中气候变暖临界参数
 
-        self.T_critical = 2 # 临界温度 (K)
-        self.T_target = 1.5 # 目标温度 (K)
+        self.T_critical = 2  # 临界温度 (K)
+        self.T_target = 1.5  # 目标温度 (K)
 
         # reward_step_function 设定的 norm 行星边界
         self.T_a_PB = 1.5  # 行星边界的大气温度 (K)
@@ -174,10 +173,10 @@ class IEMEnv(gym.Env):
         self.energy_new_ratio_PB = 0.77  # 行星边界的新能源比例
 
         self.PB = np.array([self.T_a_PB, self.C_a_PB, self.energy_new_ratio_PB])
-        
+
         self.T_a_good_target = 1.5
         self.C_a_good_target = 970
-        
+
         self.init_state = None
         self.previous_T_a = 0
         self.previous_C_a = 0
@@ -889,7 +888,7 @@ class IEMEnv(gym.Env):
             dE12_dt = 0
         else:
             dE12_dt = 0
-            
+
         return np.array(
             [
                 dT_a_dt,
@@ -919,7 +918,7 @@ class IEMEnv(gym.Env):
         ode_solutions = odeint(
             func=self.iseec_dynamics_v1_ste,
             y0=self.state,
-            t=[self.t, next_t],  
+            t=[self.t, next_t],
             mxstep=50000,
         )
 
@@ -942,18 +941,17 @@ class IEMEnv(gym.Env):
             print("Outside PB!")
 
         return over_done
-    
+
     def good_sustainable_state(self):
         """Check to see if we are in a terminal state"""
- 
+
         T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-        
+
         good_sustainable = False
-        
+
         if T_a < self.T_a_good_target and C_a < self.C_a_good_target:
             good_sustainable = True
 
-        
         return good_sustainable
 
     def get_reward_function(self, reward_type):
@@ -968,7 +966,7 @@ class IEMEnv(gym.Env):
                 reward = 0
             else:
                 reward = np.linalg.norm(T_a - self.T_a_PB)
-                reward = reward * 10 # TODO: 10, 100, 1000, 10000
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
             return reward
 
         def reward_PB_ste():
@@ -1225,7 +1223,7 @@ class IEMEnv(gym.Env):
             else:
                 reward = 1
             return reward
-        
+
         def simple_spare():
             if self.good_sustainable_state():
                 reward = 1
@@ -1239,184 +1237,206 @@ class IEMEnv(gym.Env):
         def reward_temperature_reduction_focused():
             """聚焦温度降低的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             # 比较当前温度与前一时间步温度
             temp_change = self.previous_T_a - T_a
-            
+
             # 温度变化的指数化奖励（放大小变化）
             if temp_change > 0:  # 温度下降
                 temp_reward = 5.0 * math.exp(10 * temp_change) - 1  # 指数放大小幅下降
             else:  # 温度上升或不变
                 temp_reward = -3.0 * math.exp(5 * abs(temp_change))  # 惩罚温度上升
-            
+
             # 目标成就奖励（当温度接近目标时额外奖励）
             target_bonus = 0
             if T_a < 1.7:  # 接近1.5度目标
                 target_bonus = 3.0 * (1.7 - T_a)
-            
+
             # 更新历史状态
             self.previous_T_a = T_a
-            
+
             return temp_reward + target_bonus
-        
+
         def reward_time_sensitive():
             """时间敏感的阶段性奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             # 计算当前模拟进度百分比
-            progress = (self.t - self.model_init_year) / (self.model_end_year - self.model_init_year)
-            
+            progress = (self.t - self.model_init_year) / (
+                self.model_end_year - self.model_init_year
+            )
+
             # 早期阶段重点关注碳减排
             if progress < 0.3:  # 前30%时间
                 # 碳浓度变化
                 carbon_change = self.previous_C_a - C_a
                 early_reward = 20 * carbon_change
-                
+
             # 中期阶段重点关注温度和能源转型
             elif progress < 0.7:  # 中间40%时间
                 temp_change = self.previous_T_a - T_a
-                E11 = (self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1] - E12 - E21 - E22 - E23 - E24)
-                renewable_ratio = (E21 + E22 + E23 + E24) / (E21 + E22 + E23 + E24 + E12 + E11)
+                E11 = (
+                    self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                    - E12
+                    - E21
+                    - E22
+                    - E23
+                    - E24
+                )
+                renewable_ratio = (E21 + E22 + E23 + E24) / (
+                    E21 + E22 + E23 + E24 + E12 + E11
+                )
                 mid_reward = 15 * temp_change + 10 * (renewable_ratio - 0.3)
                 early_reward = mid_reward
-                
+
             # 后期阶段重点关注温度稳定
             else:  # 最后30%时间
                 target_gap = abs(T_a - self.T_target)
                 early_reward = -15 * target_gap
-            
+
             # 更新历史状态
             self.previous_T_a = T_a
             self.previous_C_a = C_a
-            
+
             return early_reward
-        
+
         def reward_normalized_shaping():
             """归一化的奖励塑形函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             # 温度差的归一化奖励（指数形式放大差异）
             temp_diff = T_a - self.T_target
             norm_temp = 2.0 / (1.0 + math.exp(-5 * temp_diff)) - 1.0  # 归一化到[-1, 1]
             temp_reward = -10 * norm_temp  # 温度越接近目标，奖励越高
-            
+
             # 温度变化奖励
             temp_change = self.previous_T_a - T_a
             change_reward = 30 * temp_change  # 放大温度变化奖励
-            
+
             # 碳排放变化奖励
             carbon_change = self.previous_C_a - C_a
             carbon_reward = 5 * carbon_change
-            
+
             # 能源转型进度奖励
-            E11 = (self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1] - E12 - E21 - E22 - E23 - E24)
-            renewable_ratio = (E21 + E22 + E23 + E24) / (E21 + E22 + E23 + E24 + E12 + E11)
+            E11 = (
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
+            )
+            renewable_ratio = (E21 + E22 + E23 + E24) / (
+                E21 + E22 + E23 + E24 + E12 + E11
+            )
             renewable_threshold = 0.4
-            renewable_reward = 8 * (renewable_ratio - renewable_threshold) if renewable_ratio > renewable_threshold else 0
-            
+            renewable_reward = (
+                8 * (renewable_ratio - renewable_threshold)
+                if renewable_ratio > renewable_threshold
+                else 0
+            )
+
             # 更新历史状态
             self.previous_T_a = T_a
             self.previous_C_a = C_a
-            
+
             return temp_reward + change_reward + carbon_reward + renewable_reward
-        
+
         def reward_time_phased_temperature():
             """基于时间阶段的温度控制奖励函数
-            
+
             将模拟时间(1850-2100)分为三个阶段:
             1. 历史阶段(1850-2016): 不关注温度变化，仅提供基础奖励
             2. 过渡阶段(2016-2030): 开始逐步关注温度变化和减排
             3. 关键阶段(2030-2100): 高度关注温度控制，强化降温奖励
             """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             # 计算当前所处时间阶段
             current_year = self.t
-            
+
             # 1. 基础奖励计算(基于温度与目标的距离)
             temp_gap = abs(T_a - self.T_target)
             base_reward = -temp_gap  # 越接近目标，基础奖励越高
-            
+
             # 2. 基于时间阶段的奖励权重
             if current_year < 2016:
                 # 历史阶段: 不关注温度变化
                 phase_weight = 0.01  # 几乎不考虑温度控制
-                
+
             elif current_year < 2030:
                 # 过渡阶段: 开始逐步关注温度
                 # 使用线性插值从0.2到0.6
                 progress = (current_year - 2016) / (2030 - 2016)
                 phase_weight = 0.2 + progress * 0.4
-                
+
             else:
                 # 关键阶段: 高度关注温度控制
                 phase_weight = 1.0
-            
+
             # 3. 温度变化趋势奖励(只在2016年后考虑)
             trend_reward = 0
-            if current_year >= 2016 and hasattr(self, 'previous_T_a'):
+            if current_year >= 2016 and hasattr(self, "previous_T_a"):
                 temp_change = self.previous_T_a - T_a  # 温度下降为正
-                
+
                 # 放大温度变化信号
                 if temp_change > 0:  # 温度下降
                     trend_reward = 5.0 * temp_change
                 else:  # 温度上升或不变
                     trend_reward = 2.0 * temp_change  # 负奖励
-            
+
             # 4. 行星边界紧急制动奖励(任何时间段都适用)
             emergency_penalty = 0
             if T_a > self.T_a_PB:
                 # 接近行星边界时的急剧惩罚
                 emergency_penalty = -10.0 * (T_a - self.T_a_PB)
-            
+
             # 5. 温度上升速率奖励(2016年后)
             rate_reward = 0
-            if current_year >= 2016 and len(self.state_history['T_a']) > 5:
-                recent_temps = self.state_history['T_a'][-5:]
+            if current_year >= 2016 and len(self.state_history["T_a"]) > 5:
+                recent_temps = self.state_history["T_a"][-5:]
                 temp_rate = (recent_temps[-1] - recent_temps[0]) / 5
-                
+
                 # 温度上升越慢越好
                 if temp_rate <= 0:  # 温度稳定或下降
                     rate_reward = 2.0
                 else:  # 温度上升
                     rate_reward = -3.0 * temp_rate
-            
+
             # 更新历史状态
             self.previous_T_a = T_a
-            
+
             # 组合奖励
             total_reward = (
-                phase_weight * base_reward +  # 基础温度差距
-                phase_weight * trend_reward +  # 温度变化趋势
-                emergency_penalty +           # 紧急边界惩罚
-                phase_weight * rate_reward    # 温度变化率
+                phase_weight * base_reward  # 基础温度差距
+                + phase_weight * trend_reward  # 温度变化趋势
+                + emergency_penalty  # 紧急边界惩罚
+                + phase_weight * rate_reward  # 温度变化率
             )
-            
+
             return total_reward
 
         # gork 生成的回答
-        
+
         def ScalingReward():
-            """不仅放大了目标，而且还使其变成负的了，有助于收敛
-            """
-            
+            """不仅放大了目标，而且还使其变成负的了，有助于收敛"""
+
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = -10 * np.linalg.norm(T_a - self.T_a_PB)
             return reward
-        
-        
+
         def QuadraticReward():
             """计算二次奖励函数，根据输入的值返回奖励值"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - np.linalg.norm(T_a - self.T_a_PB) ** 2
+            reward = -np.linalg.norm(T_a - self.T_a_PB) ** 2
             return reward
-        
+
         def DifferentialReward():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             current_deviation = np.linalg.norm(T_a - self.T_a_PB)
-            reward = - current_deviation + 5 * (self.prev_deviation - current_deviation)
+            reward = -current_deviation + 5 * (self.prev_deviation - current_deviation)
             return reward
-        
+
         def SparseReward():
             """稀疏奖励函数，只有在达到目标时才给予奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
@@ -1425,11 +1445,11 @@ class IEMEnv(gym.Env):
                 reward = 1
             else:
                 reward = -1
-                
+
             return reward
-        
+
         def PiecewiseRewardFunction():
-            
+
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             if self.t <= 2015:
                 reward = -0.1 * np.abs(T_a - self.T_a_PB)
@@ -1498,7 +1518,7 @@ class IEMEnv(gym.Env):
         #     self.subsidy_level_ace = 0
         #     return
 
-        # if action[0] == 0: 
+        # if action[0] == 0:
         if action == 0:
             self.carbon_tax_rate = -100
 
@@ -1510,9 +1530,8 @@ class IEMEnv(gym.Env):
 
         if action == 3:
             self.carbon_tax_rate = 500
-            
-    def apply_action_copy(self, action):
 
+    def apply_action_copy(self, action):
 
         # TODO: 考虑 copan 里面 IPCC 报告里面的默认折半来进行设置考虑
         # TODO: 原则里面的部分，每2年调整一次
@@ -1622,8 +1641,6 @@ class IEMEnv(gym.Env):
             np.random.seed(seed)
             torch.manual_seed(seed)
 
-       
-        
         ######## env 本身 的部分 ########
         # TODO 储存数组部分与上一个 episode 区分开
         # 初始化状态变量
@@ -1674,14 +1691,12 @@ class IEMEnv(gym.Env):
         self.Nb_over_NT = []
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
-        
+
         self.carbon_tax_rate = 0
-        
-        
+
         ################################
-        
-        
-         # 2. 重置时间和步数
+
+        # 2. 重置时间和步数
         self.t = self.model_init_year
         self.steps = 0
 
@@ -1704,21 +1719,22 @@ class IEMEnv(gym.Env):
 
         # T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
         # self.init_state = np.array([T_a, C_o, 0])
-        
+
         # self.control_start_year
-        
+
         ############ 预热的部分 #############
-        SpingUp_time = np.arange(self.model_init_year, self.control_start_year + 1, self.dt)
-        
+        SpingUp_time = np.arange(
+            self.model_init_year, self.control_start_year + 1, self.dt
+        )
+
         ode_solutions = odeint(
             func=self.iseec_dynamics_v1_ste,
             y0=self.state,
             t=SpingUp_time,
             mxstep=300,
         )
-        
+
         self.state = np.array(ode_solutions[-1], dtype=np.float64)
-        
 
         self.done = False
 
@@ -1740,8 +1756,6 @@ class IEMEnv(gym.Env):
             "action": [],
             "action_all_dim": [],
         }
-        
-       
 
         # 根据新版 gym 的要求，reset 方法需要返回 observation 和 info
         return self.state, {}
@@ -1763,7 +1777,7 @@ class IEMEnv(gym.Env):
         if self.t - self.model_init_year >= self.max_steps:  # 提前一步结束
             self.done = True
             return self.state, 0, self.done, False, {}
-        
+
         self.prev_deviation = np.linalg.norm(self.state[0] - self.T_a_PB)
 
         # 增加一个时间步长来进行ode求解
@@ -1798,18 +1812,21 @@ class IEMEnv(gym.Env):
         self.state_history["reward"].append(reward)
 
         action_number_env, action_name_env = self.action2number_env(action)
-        
+
         self.state_history["action"].append(action_number_env)
         self.state_history["action_all_dim"].append(action)
-        
+
         # 记录总共训练的次数
-        self.data['step_idx'] += 1
+        self.data["step_idx"] += 1
 
         # 计算终止
         # - 到达最大时间步长
-        
-        if self.t - self.model_init_year  >= self.max_steps or self.done_state_inside_planetary_boundaries():
-        # if self.t - self.model_init_year >= self.max_steps:
+
+        if (
+            self.t - self.model_init_year >= self.max_steps
+            or self.done_state_inside_planetary_boundaries()
+        ):
+            # if self.t - self.model_init_year >= self.max_steps:
             self.done = True
 
         # 空字典代替
@@ -1836,7 +1853,6 @@ class IEMEnv(gym.Env):
 
         return self.state, reward, self.done, truncated, info
 
-
     @staticmethod
     def action2number_env(action_numpy):
         # """2维度时候计算获取的"""
@@ -1851,7 +1867,7 @@ class IEMEnv(gym.Env):
         #     return 3, "policy_3"
         # else:
         #     raise ValueError("没有对应的 action")
-        
+
         # """1维度时候计算获取的"""
         if action_numpy == 0:
             return 0, "default"
@@ -1920,21 +1936,18 @@ class IEMEnv(gym.Env):
         """关闭图形"""
         pass
 
-
     def append_data_reward(self, episode_reward):
         """加入多种数据靠这个函数
-        
+
         内部无法在每次 episode 时候记录，那么就外部手动调用
         """
         self.data["rewards"].append(episode_reward)
-        self.data['moving_avg_rewards'].append(np.mean(self.data["rewards"][-50:])) # 计算最近 50 个 episode 的平均 reward,没有就计算当前的 
-        self.data['moving_std_rewards'].append(np.std(self.data["rewards"][-50:]))
-        self.data['episodes'] += 1
+        self.data["moving_avg_rewards"].append(
+            np.mean(self.data["rewards"][-50:])
+        )  # 计算最近 50 个 episode 的平均 reward,没有就计算当前的
+        self.data["moving_std_rewards"].append(np.std(self.data["rewards"][-50:]))
+        self.data["episodes"] += 1
 
     def get_variables(self):
-        """获取变量
-        
-        
-        """
+        """获取变量"""
         return self.data
-

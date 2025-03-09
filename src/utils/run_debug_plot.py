@@ -1,4 +1,3 @@
-
 # here put the import lib
 import gymnasium as gym
 from gymnasium import spaces
@@ -16,7 +15,8 @@ from stable_baselines3.common.env_checker import check_env
 
 # 在代码最开始添加
 import os
-os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 import sys
@@ -41,8 +41,18 @@ def init_data():
     pass
 
 
-def save_data(env,custom_reward_type,rl_model_name,network_name,episode,total_action,total_state,total_reward,total_done,total_timesteps_name):
-
+def save_data(
+    env,
+    custom_reward_type,
+    rl_model_name,
+    network_name,
+    episode,
+    total_action,
+    total_state,
+    total_reward,
+    total_done,
+    total_timesteps_name,
+):
     """
 
     保存数据到 csv 文件
@@ -102,7 +112,8 @@ def save_data(env,custom_reward_type,rl_model_name,network_name,episode,total_ac
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
     subsub_directory = os.path.join(
-        sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}"
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
     )
 
     os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
@@ -115,9 +126,20 @@ def save_data(env,custom_reward_type,rl_model_name,network_name,episode,total_ac
     file_path = os.path.join(subsub_directory, filename)
     df.to_csv(file_path, index=False)
     print(f"已保存数据到 {file_path}")
-    
-def save_future_data(env,custom_reward_type,rl_model_name,network_name,episode,total_action,total_state,total_reward,total_done,total_timesteps_name):
 
+
+def save_future_data(
+    env,
+    custom_reward_type,
+    rl_model_name,
+    network_name,
+    episode,
+    total_action,
+    total_state,
+    total_reward,
+    total_done,
+    total_timesteps_name,
+):
     """
 
     保存数据到 csv 文件
@@ -177,7 +199,8 @@ def save_future_data(env,custom_reward_type,rl_model_name,network_name,episode,t
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
     subsub_directory = os.path.join(
-        sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}"
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
     )
 
     os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
@@ -295,7 +318,8 @@ def save_plot_SSM_data(
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
     subsub_directory = os.path.join(
-        sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}"
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
     )
 
     os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
@@ -414,7 +438,8 @@ def save_plot_SSM_future_data(
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
     subsub_directory = os.path.join(
-        sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}"
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
     )
 
     os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
@@ -430,7 +455,6 @@ def save_plot_SSM_future_data(
     plt.close(fig)
 
 
-
 def save_plot_NSM_data(
     env,
     custom_reward_type,
@@ -439,7 +463,7 @@ def save_plot_NSM_data(
     episode,
     total_action,
     total_state,
-    total_timesteps_name
+    total_timesteps_name,
 ):
     """
     保存 plot 数据
@@ -503,18 +527,19 @@ def save_plot_NSM_data(
     sub_directory = os.path.join(main_directory, custom_reward_type)
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
-    subsub_directory = os.path.join(sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}")
+    subsub_directory = os.path.join(
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
+    )
 
-    os.makedirs(subsub_directory, exist_ok=True) # 自动创建最下面的
+    os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
 
     # 将文件保存到 output 文件夹，使用时间戳命名
-    filename = (
-        f"plot_data_NSM_episode_{episode}.png"
-    )
+    filename = f"plot_data_NSM_episode_{episode}.png"
 
     file_path = os.path.join(subsub_directory, filename)
 
-    plt.savefig(file_path, bbox_inches='tight', dpi=300)
+    plt.savefig(file_path, bbox_inches="tight", dpi=300)
 
     # 关闭图表
     plt.close(fig)
@@ -529,7 +554,7 @@ def save_plot_NSM_future_data(
     episode,
     total_action,
     total_state,
-    total_timesteps_name
+    total_timesteps_name,
 ):
     """
     保存 plot 数据
@@ -593,18 +618,19 @@ def save_plot_NSM_future_data(
     sub_directory = os.path.join(main_directory, custom_reward_type)
 
     # 子子目录路径（例如，按照批次大小创建子文件夹）
-    subsub_directory = os.path.join(sub_directory, f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}")
+    subsub_directory = os.path.join(
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
+    )
 
-    os.makedirs(subsub_directory, exist_ok=True) # 自动创建最下面的
+    os.makedirs(subsub_directory, exist_ok=True)  # 自动创建最下面的
 
     # 将文件保存到 output 文件夹，使用时间戳命名
-    filename = (
-        f"plot_data_NSM_episode_{episode}.png"
-    )
+    filename = f"plot_data_NSM_episode_{episode}.png"
 
     file_path = os.path.join(subsub_directory, filename)
 
-    plt.savefig(file_path, bbox_inches='tight', dpi=300)
+    plt.savefig(file_path, bbox_inches="tight", dpi=300)
 
     # 关闭图表
     plt.close(fig)
@@ -613,7 +639,7 @@ def save_plot_NSM_future_data(
 def plot_hairy_lines():
     """
     绘制轨迹线
-    
+
     内容主要参照 ays 中的部分，对于行星边界的绘制
     """
     pass
@@ -627,64 +653,90 @@ def append_data_episode(episode_reward):
 def plot_episode_reward(data_dict):
     """动态绘制 reward 曲线"""
 
-    rewards = data_dict['moving_avg_rewards']
-    std = data_dict['moving_std_rewards']
-    frame_idx = data_dict['step_idx']
-    episode_idx = data_dict['episodes']
+    rewards = data_dict["moving_avg_rewards"]
+    std = data_dict["moving_std_rewards"]
+    frame_idx = data_dict["step_idx"]
+    episode_idx = data_dict["episodes"]
     clear_output(True)
     plt.figure(figsize=(20, 5))
 
     # 建立其中的基础画布
     # 因为其中的有两个图，所以不能在一起绘制，否则 ax3d 会冲突
     plt.subplot(131)
-    plt.title('frame %s. reward: %s episode: %s' % (frame_idx, rewards[-1], episode_idx))
+    plt.title(
+        "frame %s. reward: %s episode: %s" % (frame_idx, rewards[-1], episode_idx)
+    )
     plt.plot(rewards)
     reward = np.array(rewards)
     stds = np.array(std)
-    plt.fill_between(np.arange(len(reward)), reward - 0.25 * stds, reward + 0.25 * stds, color='b', alpha=0.1)
-    plt.fill_between(np.arange(len(reward)), reward - 0.5 * stds, reward + 0.5 * stds, color='b', alpha=0.1)
+    plt.fill_between(
+        np.arange(len(reward)),
+        reward - 0.25 * stds,
+        reward + 0.25 * stds,
+        color="b",
+        alpha=0.1,
+    )
+    plt.fill_between(
+        np.arange(len(reward)),
+        reward - 0.5 * stds,
+        reward + 0.5 * stds,
+        color="b",
+        alpha=0.1,
+    )
     plt.show()
-    
+
+
 def plot_reward_gpt(data):
     """
     绘制 reward 曲线
     """
-    rewards = data['rewards']
-    moving_avg_rewards = data['moving_avg_rewards']
-    moving_std_rewards = data['moving_std_rewards']
-    episodes = data['episodes']
+    rewards = data["rewards"]
+    moving_avg_rewards = data["moving_avg_rewards"]
+    moving_std_rewards = data["moving_std_rewards"]
+    episodes = data["episodes"]
 
     # 设置绘图风格（美观、简洁）
     # plt.style.use('seaborn-whitegrid')
-    plt.style.use('ggplot')
+    plt.style.use("ggplot")
 
     # 创建图形
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # 绘制奖励曲线
-    ax.plot(rewards, label='Raw Rewards', color='dodgerblue', linewidth=2, alpha=0.8)
+    ax.plot(rewards, label="Raw Rewards", color="dodgerblue", linewidth=2, alpha=0.8)
 
     # 绘制移动平均奖励曲线
-    ax.plot(moving_avg_rewards, label='Moving Average Rewards', color='forestgreen', linewidth=2, alpha=0.8)
+    ax.plot(
+        moving_avg_rewards,
+        label="Moving Average Rewards",
+        color="forestgreen",
+        linewidth=2,
+        alpha=0.8,
+    )
 
     # 绘制标准差区域
-    ax.fill_between(range(episodes), 
-                    np.array(moving_avg_rewards) - np.array(moving_std_rewards), 
-                    np.array(moving_avg_rewards) + np.array(moving_std_rewards), 
-                    color='lightgreen', alpha=0.5, label='Standard Deviation Range')
+    ax.fill_between(
+        range(episodes),
+        np.array(moving_avg_rewards) - np.array(moving_std_rewards),
+        np.array(moving_avg_rewards) + np.array(moving_std_rewards),
+        color="lightgreen",
+        alpha=0.5,
+        label="Standard Deviation Range",
+    )
 
     # 添加标题和标签
-    ax.set_title('Reward Progression in Reinforcement Learning', fontsize=16)
-    ax.set_xlabel('Episodes', fontsize=14)
-    ax.set_ylabel('Rewards', fontsize=14)
+    ax.set_title("Reward Progression in Reinforcement Learning", fontsize=16)
+    ax.set_xlabel("Episodes", fontsize=14)
+    ax.set_ylabel("Rewards", fontsize=14)
 
     # 显示图例
-    ax.legend(loc='best', fontsize=12)
+    ax.legend(loc="best", fontsize=12)
 
     # 显示图表
     plt.tight_layout()
     plt.show()
-    
+
+
 def plot_episode_reward_simple(all_episode_rewards_plot):
     """动态绘制 reward 曲线"""
 
@@ -698,69 +750,80 @@ def plot_episode_reward_simple(all_episode_rewards_plot):
     plt.ylabel("Reward")
     plt.plot(all_episode_rewards)
     plt.show()
-    
-    
+
+
 def hariy_lines(num, ax3d, env, total_state):
     """
     绘制轨迹线
-    
+
     内容主要参照 ays 中的部分，对于行星边界的绘制
     # TODO: action 的不同管理结果展示
-    # TODO: 参数的 random 
+    # TODO: 参数的 random
     """
-    
+
     # 添加不同的初始状态求解的结果，
-    
+
     colortop = "lime"
     colorbottom = "black"
-    
-    y0 = [0, env.cina, env.cino, env.cinod, 0,  0, 0, 0, 0,  env.energy_MYbaseline18502100_biomass[0]] 
-    
+
+    y0 = [
+        0,
+        env.cina,
+        env.cino,
+        env.cinod,
+        0,
+        0,
+        0,
+        0,
+        0,
+        env.energy_MYbaseline18502100_biomass[0],
+    ]
+
     max_time_steps = 251  # 通常是251
     years = np.array([env.model_init_year + i for i in range(max_time_steps)])
 
     for i in range(num):
-        
+
         # 在 y0 基础上添加随机波动
-        y0[0] = y0[0] + np.random.uniform(low=-1.5, high=1.5) 
-        y0[1] = y0[1] + np.random.uniform(low=-300, high=300) # 604~970
-        y0[2] = y0[2] + np.random.uniform(low=-50, high=50) # C_o 100~151
-        y0[3] = y0[3] + np.random.uniform(low=-250, high=250)# C_od 1000~1500
-        y0[4] = y0[4] + np.random.uniform(low=-0.8, high=0.8)# T_0 0~1.6
-        y0[5] = y0[5] + np.random.uniform(low=-450, high=450)# E21 0~910
-        y0[6] = y0[6] + np.random.uniform(low=-150, high=150)# E22 0~350
-        y0[7] = y0[7] + np.random.uniform(low=-5, high=5)# E23 0~13
-        y0[8] = y0[8] + np.random.uniform(low=-25, high=25)# E24 0~47
-        y0[9] = y0[9] + np.random.uniform(low=-25, high=25)# E12  50.312
-        
+        y0[0] = y0[0] + np.random.uniform(low=-1.5, high=1.5)
+        y0[1] = y0[1] + np.random.uniform(low=-300, high=300)  # 604~970
+        y0[2] = y0[2] + np.random.uniform(low=-50, high=50)  # C_o 100~151
+        y0[3] = y0[3] + np.random.uniform(low=-250, high=250)  # C_od 1000~1500
+        y0[4] = y0[4] + np.random.uniform(low=-0.8, high=0.8)  # T_0 0~1.6
+        y0[5] = y0[5] + np.random.uniform(low=-450, high=450)  # E21 0~910
+        y0[6] = y0[6] + np.random.uniform(low=-150, high=150)  # E22 0~350
+        y0[7] = y0[7] + np.random.uniform(low=-5, high=5)  # E23 0~13
+        y0[8] = y0[8] + np.random.uniform(low=-25, high=25)  # E24 0~47
+        y0[9] = y0[9] + np.random.uniform(low=-25, high=25)  # E12  50.312
+
         traj = odeint(env.iseec_dynamics_v1_ste, y0, years)
-        
-        
-        
+
         # ax3d.plot3D(xs=traj[:,0], ys=traj[:,1], zs=traj[:,2],
         #                 color=colorbottom if traj[-1,2]<0.5 else colortop, alpha=.08)
-        
-        ax3d.plot3D(xs=traj[:,0], ys=traj[:,1], zs=traj[:,2])
-    
-def plot_3D_run(env,
+
+        ax3d.plot3D(xs=traj[:, 0], ys=traj[:, 1], zs=traj[:, 2])
+
+
+def plot_3D_run(
+    env,
     custom_reward_type,
     rl_model_name,
     network_name,
     episode,
     total_action,
-    total_state,)->None:
+    total_state,
+) -> None:
     """
     绘制 3D 运行图
-    
+
     是利用训练好的 agent 步骤
     """
     # 创建画布
     fig = plt.figure(figsize=(10, 10))
-    ax3d = fig.add_subplot(111, projection='3d')
-    
-    
+    ax3d = fig.add_subplot(111, projection="3d")
+
     env.reset()
-    
+
     states = np.array(total_state)
     T_a = states[:, 0]  # 温度
     C_a = states[:, 1]  # 大气碳浓度
@@ -769,8 +832,7 @@ def plot_3D_run(env,
     E23 = states[:, 7]  # 可再生能源3
     E24 = states[:, 8]  # 可再生能源4
     E12 = states[:, 9]  # 生物质能源
-    
-    
+
     energy_MYadjusted18502100_total_plus_B3B_plus_ACE3_train = (
         env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[
             0 : int(len(total_state))
@@ -784,32 +846,27 @@ def plot_3D_run(env,
         - E24
         - E12
     )
-    
+
     # color_list=['#e41a1c','#ff7f00','#4daf4a','#377eb8','#984ea3']
     # my_color = color_list[action]
-    
-    energy_new_ratio = (E21 + E22 + E23 + E24) / (
-                E21 + E22 + E23 + E24 + E12 + E11
-            )
 
-    
-    
+    energy_new_ratio = (E21 + E22 + E23 + E24) / (E21 + E22 + E23 + E24 + E12 + E11)
+
     # ax3d.plot(T_a, energy_new_ratio, E11, label='T_a,  energy_new_ratio, E11')
     # ax3d.plot(E23, E24, E12, label='E23, E24, E12')
-    
+
     # ax3d.set_xlabel('T_a')
     # ax3d.set_ylabel('energy_new_ratio')
     # ax3d.set_zlabel('E11')
     # ax3d.legend()
     # ax3d.set_title('3D Run')
-    
-    
+
     hariy_lines(100, ax3d, env, total_state)
-    
+
     # 显示图表
     plt.tight_layout()
     plt.show()
-    
+
     # 保存图片
     main_directory = "output"
 
@@ -833,6 +890,7 @@ def plot_3D_run(env,
     # 关闭图表
     plt.close(fig)  # Close the figure to free memory
 
+
 if __name__ == "__main__":
 
     # 自定义属性
@@ -841,7 +899,7 @@ if __name__ == "__main__":
     rl_model_name = "fixed"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
-    
+
     total_timesteps_diy = int(1e2)
 
     # 利用 gym 函数检查环境
@@ -886,9 +944,9 @@ if __name__ == "__main__":
             total_reward.append(reward)
             total_done.append(done)
             ##################################
-            # 
+            #
             episode_reward += reward
-            ##################################  
+            ##################################
 
             if done:
                 print(f"Episode {episode} finished at step {i}")
@@ -916,15 +974,32 @@ if __name__ == "__main__":
             total_state,
             total_reward,
             total_done,
-            total_timesteps_diy
+            total_timesteps_diy,
         )
 
-    
-        save_plot_SSM_future_data(env, custom_reward_type, rl_model_name, network_name, episode, total_action, total_state, total_timesteps_diy)
-        save_plot_NSM_future_data(env, custom_reward_type, rl_model_name, network_name, episode, total_action, total_state, total_timesteps_diy)
+        save_plot_SSM_future_data(
+            env,
+            custom_reward_type,
+            rl_model_name,
+            network_name,
+            episode,
+            total_action,
+            total_state,
+            total_timesteps_diy,
+        )
+        save_plot_NSM_future_data(
+            env,
+            custom_reward_type,
+            rl_model_name,
+            network_name,
+            episode,
+            total_action,
+            total_state,
+            total_timesteps_diy,
+        )
 
         env.append_data_reward(episode_reward)
-        
+
         # plot_3D_run(env, custom_reward_type, rl_model_name, network_name, episode, total_action, total_state)
 
     # 获取变量

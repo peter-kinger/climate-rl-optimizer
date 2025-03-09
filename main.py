@@ -25,8 +25,6 @@ from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
 # 设置日志保存路径和格式
 
 
-
-
 tmp_path = "logs/sb3_log/"
 new_logger = configure(
     tmp_path,
