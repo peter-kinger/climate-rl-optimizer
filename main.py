@@ -23,6 +23,10 @@ sys.path.append(os.path.abspath("src"))
 from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
 
 # 设置日志保存路径和格式
+
+
+
+
 tmp_path = "logs/sb3_log/"
 new_logger = configure(
     tmp_path,
@@ -33,12 +37,8 @@ new_logger = configure(
         "json",  # JSON格式
     ],
 )
-
-
 env = IEMEnv(reward_type="PB_ste")
-
 env_monitor = Monitor(env, "./logs/monitor_logs/monitor2")
-
 # 定义模型
 model = PPO(
     "MlpPolicy",
@@ -46,12 +46,9 @@ model = PPO(
     verbose=1,
     tensorboard_log="./logs/tensorboard_logs",
 )
-
 model.set_logger(new_logger)
-
 model.learn(
     total_timesteps=int(2e4),
     tb_log_name="iseec_v4_PPO_Net256_2e4",
 )
-
 model.save("iseec_v4_PPO_Net256_2e4")
