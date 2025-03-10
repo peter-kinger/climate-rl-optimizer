@@ -895,26 +895,22 @@ if __name__ == "__main__":
 
     # 自定义属性
     custom_reward_type = "PB_temperature"
-
     rl_model_name = "fixed"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
-
     total_timesteps_diy = int(1e2)
+    max_steps = 300
 
     # 利用 gym 函数检查环境
     env = IEMEnv(reward_type=custom_reward_type)
-    check_env(env)
+    check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果
     all_episode_rewards = []
-    # all_total_actions = []
-    # all_total_states = []
-
-    max_steps = 300
 
     # 在主程序开始处定义固定动作
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
+    fixed_action = 1  # 设置您想要测试的固定动作
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
@@ -932,19 +928,19 @@ if __name__ == "__main__":
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
-            # action = fixed_action
-            action = env.action_space.sample()
+            
+            action = fixed_action
+            # action = env.action_space.sample()
+            
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
-            ##################################
-            # 添加转换的部分
+            ############ 添加转换的部分 #########
             action_number, action_name = IEMEnv.action2number_env(action)
             total_action.append(action_number)
             total_state.append(obs)
             total_reward.append(reward)
             total_done.append(done)
-            ##################################
-            #
+            
             episode_reward += reward
             ##################################
 
@@ -977,28 +973,28 @@ if __name__ == "__main__":
             total_timesteps_diy,
         )
 
-        save_plot_SSM_future_data(
-            env,
-            custom_reward_type,
-            rl_model_name,
-            network_name,
-            episode,
-            total_action,
-            total_state,
-            total_timesteps_diy,
-        )
-        save_plot_NSM_future_data(
-            env,
-            custom_reward_type,
-            rl_model_name,
-            network_name,
-            episode,
-            total_action,
-            total_state,
-            total_timesteps_diy,
-        )
+        # save_plot_SSM_future_data(
+        #     env,
+        #     custom_reward_type,
+        #     rl_model_name,
+        #     network_name,
+        #     episode,
+        #     total_action,
+        #     total_state,
+        #     total_timesteps_diy,
+        # )
+        # save_plot_NSM_future_data(
+        #     env,
+        #     custom_reward_type,
+        #     rl_model_name,
+        #     network_name,
+        #     episode,
+        #     total_action,
+        #     total_state,
+        #     total_timesteps_diy,
+        # )
 
-        env.append_data_reward(episode_reward)
+        # env.append_data_reward(episode_reward)
 
         # plot_3D_run(env, custom_reward_type, rl_model_name, network_name, episode, total_action, total_state)
 

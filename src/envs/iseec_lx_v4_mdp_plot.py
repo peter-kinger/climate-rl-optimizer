@@ -62,14 +62,6 @@ class IEMEnv(gym.Env):
         # 模拟开始时间
         self.control_start_year = control_start_year  # TODO
 
-        # 环境部分
-        self.steps = 0
-
-        # 添加绘图相关的属性
-        self.fig = None
-        self.ax = None
-        self.lines = None
-
         # run information in a dictionary
         self.data = {
             "rewards": [],  # 记录的是 episode 的 reward
@@ -543,7 +535,7 @@ class IEMEnv(gym.Env):
             ############################### 税收增加的部分 ##############################
             # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
             # 添加碳税政策的影响
-            # self.carbon_tax_rate = 50  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
+            # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
             self.price_elasticity = (
                 -0.3
             )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
@@ -910,11 +902,7 @@ class IEMEnv(gym.Env):
     #
     def get_observation(self, next_t):
         """This is where we solve the dynamical system of equations to get the next state"""
-        # ode_solutions = odeint(func=self.iseec_dynamics_v1_ste,
-        #                     y0=self.state,
-        #                     t=[self.t, next_t],
-        #                     mxstep=50000)
-
+        
         ode_solutions = odeint(
             func=self.iseec_dynamics_v1_ste,
             y0=self.state,
@@ -1504,32 +1492,21 @@ class IEMEnv(gym.Env):
         self.action_space = spaces.MultiDiscrete([2, 2, 2])
         """
 
-        # TODO: 考虑 copan 里面 IPCC 报告里面的默认折半来进行设置考虑
-        # TODO: 原则里面的部分，每2年调整一次
-
-        # TODO：考虑根据 en-roads 来设置碳税里面价格的设置（每次变动的幅度为30%~10%，基于一个测试值来浮动）
-        # TODO: 考虑到实在的部分，税收是对半或者减少 1. 对半操作 2.直接变换操作
-        # TODO: 增加判断，如果幅度过大，就跳过该步骤
-
-        # # 基于时间判断是否执行管控
-        # if self.t < self.control_start_year:
-        #     # 在管控开始前，使用默认值
-        #     self.carbon_tax_rate = 0
-        #     self.subsidy_level_ace = 0
-        #     return
-
         # if action[0] == 0:
         if action == 0:
             self.carbon_tax_rate = -100
 
-        if action == 1:
+        elif action == 1:
             self.carbon_tax_rate = 0
 
-        if action == 2:
+        elif action == 2:
             self.carbon_tax_rate = 100
 
-        if action == 3:
+        elif action == 3:
             self.carbon_tax_rate = 500
+            
+        else:
+            raise ValueError("没有对应的 action")
 
     def apply_action_copy(self, action):
 
@@ -1642,7 +1619,7 @@ class IEMEnv(gym.Env):
             torch.manual_seed(seed)
 
         ######## env 本身 的部分 ########
-        # TODO 储存数组部分与上一个 episode 区分开
+        # 1.储存数组部分与上一个 episode 区分开
         # 初始化状态变量
         self.k21, self.k22, self.taoR21, self.taoP21, self.taoDV21, self.taoDF21 = (
             [],
@@ -1687,14 +1664,11 @@ class IEMEnv(gym.Env):
             [],
         )
 
-        # iseec v2 新增的部分
-        self.Nb_over_NT = []
+        ###########  关于 action 部分的重置 ###################
+
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
-
         self.carbon_tax_rate = 0
-
-        ################################
 
         # 2. 重置时间和步数
         self.t = self.model_init_year
@@ -1717,11 +1691,6 @@ class IEMEnv(gym.Env):
             dtype=np.float64,
         )
 
-        # T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-        # self.init_state = np.array([T_a, C_o, 0])
-
-        # self.control_start_year
-
         ############ 预热的部分 #############
         SpingUp_time = np.arange(
             self.model_init_year, self.control_start_year + 1, self.dt
@@ -1733,8 +1702,11 @@ class IEMEnv(gym.Env):
             t=SpingUp_time,
             mxstep=300,
         )
+        #####################################
 
         self.state = np.array(ode_solutions[-1], dtype=np.float64)
+        
+        self.t = self.control_start_year
 
         self.done = False
 
@@ -1773,11 +1745,18 @@ class IEMEnv(gym.Env):
         - info: 额外信息，通常用于调试
         """
 
-        # 更加严格的检查是否已经到达最大步数
-        if self.t - self.model_init_year >= self.max_steps:  # 提前一步结束
+        # 计算终止
+        # - 到达最大时间步长
+        # - 超出地球边界
+        if self.t >= self.model_end_year:
             self.done = True
             return self.state, 0, self.done, False, {}
 
+        if self.done_state_inside_planetary_boundaries():
+            self.done = True
+            return self.state, 0, self.done, False, {}
+
+        # reward 单独计算方面
         self.prev_deviation = np.linalg.norm(self.state[0] - self.T_a_PB)
 
         # 增加一个时间步长来进行ode求解
@@ -1798,6 +1777,7 @@ class IEMEnv(gym.Env):
         reward = self.reward_function()
 
         # Record state history - add this section
+        action_number_env, action_name_env = self.action2number_env(action)
         self.state_history["time"].append(self.t)
         self.state_history["T_a"].append(self.state[0])
         self.state_history["C_a"].append(self.state[1])
@@ -1810,24 +1790,11 @@ class IEMEnv(gym.Env):
         self.state_history["E24"].append(self.state[8])
         self.state_history["E12"].append(self.state[9])
         self.state_history["reward"].append(reward)
-
-        action_number_env, action_name_env = self.action2number_env(action)
-
         self.state_history["action"].append(action_number_env)
         self.state_history["action_all_dim"].append(action)
-
+        
         # 记录总共训练的次数
-        self.data["step_idx"] += 1
-
-        # 计算终止
-        # - 到达最大时间步长
-
-        if (
-            self.t - self.model_init_year >= self.max_steps
-            or self.done_state_inside_planetary_boundaries()
-        ):
-            # if self.t - self.model_init_year >= self.max_steps:
-            self.done = True
+        self.data["step_idx"] += 1 # all episodes 记录的
 
         # 空字典代替
         truncated = False
@@ -1848,9 +1815,7 @@ class IEMEnv(gym.Env):
             },
         }
 
-        # TODO: 考虑是否需要归一化
-        # trafo_state=self.normalize_state(self.state)
-
+        # TODO: 考虑是否需要归一化: trafo_state=self.normalize_state(self.state)
         return self.state, reward, self.done, truncated, info
 
     @staticmethod
@@ -1881,17 +1846,6 @@ class IEMEnv(gym.Env):
             raise ValueError("没有对应的 action")
 
     def render(self, mode="human"):
-        # # 绘制 某个 episode 的状态变量变化
-        # time = self.state_history['time']
-        # temp = self.state_history['T_a']
-
-        # clear_output(True)
-        # plt.figure(figsize=(20, 5))
-
-        # plt.subplot(131)
-        # plt.title('Atmospheric Temperature Over Time')
-        # plt.plot(time, temp, 'r-', linewidth=2, label='Temperature')
-        # plt.show()
 
         # 方式 2 ，过程中多个绘制
         time = self.state_history["time"]
