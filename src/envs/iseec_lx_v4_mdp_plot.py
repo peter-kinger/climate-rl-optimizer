@@ -1119,66 +1119,6 @@ class IEMEnv(gym.Env):
 
             return reward
 
-        def reward_change_multi_temperature_carbon():
-            """使用权重系数处理不同量纲的奖励"""
-            T_a = self.state[0]
-            C_a = self.state[1]
-
-            # 温度变化（单位：℃）
-            temp_change = self.previous_T_a - T_a
-
-            # 碳浓度变化（单位：ppm）
-            carbon_change = self.previous_C_a - C_a
-
-            # 权重系数（基于物理意义设计）
-            w_temp = 1.0  # 每降低1℃的奖励权重
-            w_carbon = 0.01  # 每降低1ppm的奖励权重
-
-            # 计算加权奖励
-            temp_reward = w_temp * temp_change
-            carbon_reward = w_carbon * carbon_change
-
-            # 更新历史值
-            self.previous_T_a = T_a
-            self.previous_C_a = C_a
-
-            return temp_reward + carbon_reward
-
-        def reward_temperature_carbon_ste(self):
-            """使用分段权重处理不同量纲的奖励"""
-            T_a = self.state[0]
-            C_a = self.state[1]
-
-            # 温度变化
-            temp_change = self.previous_T_a - T_a
-            # 碳浓度变化
-            carbon_change = self.previous_C_a - C_a
-
-            # 温度权重（基于不同温度区间）
-            if T_a > 2.0:  # 危险区域
-                w_temp = 2.0
-            elif T_a > 1.5:  # 警告区域
-                w_temp = 1.5
-            else:  # 安全区域
-                w_temp = 1.0
-
-            # 碳浓度权重（基于不同浓度区间）
-            if C_a > 500:  # 高浓度区域
-                w_carbon = 0.02
-            elif C_a > 450:  # 中等浓度区域
-                w_carbon = 0.015
-            else:  # 低浓度区域
-                w_carbon = 0.01
-
-            # 计算加权奖励
-            temp_reward = w_temp * temp_change
-            carbon_reward = w_carbon * carbon_change
-
-            # 更新历史值
-            self.previous_T_a = T_a
-            self.previous_C_a = C_a
-
-            return temp_reward + carbon_reward
 
         # 机理设计类型
         ################# ays copan 基本类型 reward 考虑 ##################
@@ -1215,6 +1155,7 @@ class IEMEnv(gym.Env):
         def simple_spare():
             if self.good_sustainable_state():
                 reward = 1
+                
             elif self.done_state_inside_planetary_boundaries():
                 reward = -1
             else:
@@ -1287,48 +1228,6 @@ class IEMEnv(gym.Env):
             self.previous_C_a = C_a
 
             return early_reward
-
-        def reward_normalized_shaping():
-            """归一化的奖励塑形函数"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            # 温度差的归一化奖励（指数形式放大差异）
-            temp_diff = T_a - self.T_target
-            norm_temp = 2.0 / (1.0 + math.exp(-5 * temp_diff)) - 1.0  # 归一化到[-1, 1]
-            temp_reward = -10 * norm_temp  # 温度越接近目标，奖励越高
-
-            # 温度变化奖励
-            temp_change = self.previous_T_a - T_a
-            change_reward = 30 * temp_change  # 放大温度变化奖励
-
-            # 碳排放变化奖励
-            carbon_change = self.previous_C_a - C_a
-            carbon_reward = 5 * carbon_change
-
-            # 能源转型进度奖励
-            E11 = (
-                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                - E12
-                - E21
-                - E22
-                - E23
-                - E24
-            )
-            renewable_ratio = (E21 + E22 + E23 + E24) / (
-                E21 + E22 + E23 + E24 + E12 + E11
-            )
-            renewable_threshold = 0.4
-            renewable_reward = (
-                8 * (renewable_ratio - renewable_threshold)
-                if renewable_ratio > renewable_threshold
-                else 0
-            )
-
-            # 更新历史状态
-            self.previous_T_a = T_a
-            self.previous_C_a = C_a
-
-            return temp_reward + change_reward + carbon_reward + renewable_reward
 
         def reward_time_phased_temperature():
             """基于时间阶段的温度控制奖励函数
