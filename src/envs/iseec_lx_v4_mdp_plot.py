@@ -537,7 +537,7 @@ class IEMEnv(gym.Env):
             # 添加碳税政策的影响
             # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
             self.price_elasticity = (
-                -0.3
+                - 1 # -0.3->-1
             )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
             self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
             #
