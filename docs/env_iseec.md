@@ -153,7 +153,7 @@ self.carbon_tax_rate
 
 准备相关的数据空数组
 
-- 主要是每次 episode 的单独记录
+- 主要是每次 episode
 
 
 - state_history 的记录部分（注意生命周期只有 episode）
