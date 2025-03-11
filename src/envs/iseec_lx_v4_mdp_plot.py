@@ -147,24 +147,24 @@ class IEMEnv(gym.Env):
         self.rho_od = self.odco2c / self.cinod  # 深层海洋碳浓度转换系数 (ppm -> Pg)
 
         ################# RL 部分的参数 ############################
+        
         # -------- rl done 里面训练的相关参数 --------
         # done_PB 计算部分的参数
-        self.T_a_PB_done = 1.76
+        self.T_a_PB_done = 1.76 # 采用了 minus 100 最极端的判断标准
         self.C_a_PB_done = 1000
 
         # -------- rl reward 里面训练的相关参数 --------
-        # reward_threedimension_function 设定的 norm 碳临界参数
-        self.eta_three = 0.1  # 三维中气候变暖临界参数
-
-        self.T_critical = 2  # 临界温度 (K)
-        self.T_target = 1.5  # 目标温度 (K)
-
         # reward_step_function 设定的 norm 行星边界
         self.T_a_PB = 1.5  # 行星边界的大气温度 (K)
         self.C_a_PB = 972.13  # 行星边界的大气 CO2 浓度 (ppm)
         self.energy_new_ratio_PB = 0.77  # 行星边界的新能源比例
 
         self.PB = np.array([self.T_a_PB, self.C_a_PB, self.energy_new_ratio_PB])
+        
+        # reward_threedimension_function 设定的 norm 碳临界参数
+        self.eta_three = 0.1  # 三维中气候变暖临界参数
+        self.T_critical = 2  # 临界温度 (K)
+        self.T_target = 1.5  # 目标温度 (K)
 
         self.T_a_good_target = 1.5
         self.C_a_good_target = 970
@@ -953,7 +953,7 @@ class IEMEnv(gym.Env):
             if self.done_state_inside_planetary_boundaries():
                 reward = 0
             else:
-                reward = np.linalg.norm(T_a - self.T_a_PB)
+                reward = - np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
             return reward
 
@@ -1905,3 +1905,4 @@ class IEMEnv(gym.Env):
     def get_variables(self):
         """获取变量"""
         return self.data
+
