@@ -142,11 +142,6 @@ self.carbon_tax_rate
 
 
 
-
-
-
-
-
 ### def reset(self, options=None):
 
 定义模拟的初始年份和初始状态
@@ -187,10 +182,6 @@ self.carbon_tax_rate
 
 
 ### def get_variables(self):
-
-
-
-
 
 
 
