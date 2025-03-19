@@ -160,16 +160,15 @@ class IEMEnv(gym.Env):
         self.energy_new_ratio_PB = 0.77  # 行星边界的新能源比例
 
         self.PB = np.array([self.T_a_PB, self.C_a_PB, self.energy_new_ratio_PB])
+        self.init_state = np.array([1.095932163, 864.4223529, 0.14])
         
         # reward_threedimension_function 设定的 norm 碳临界参数
-        self.eta_three = 0.1  # 三维中气候变暖临界参数
-        self.T_critical = 2  # 临界温度 (K)
+        self.T_critical = 1.5  # 临界温度 (K)
         self.T_target = 1.5  # 目标温度 (K)
 
         self.T_a_good_target = 1.5
         self.C_a_good_target = 970
 
-        self.init_state = None
         self.previous_T_a = 0
         self.previous_C_a = 0
 
@@ -954,7 +953,7 @@ class IEMEnv(gym.Env):
                 reward = 0
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
-                reward = reward * 10  # TODO: 10, 100, 1000, 10000
+                reward = reward * 100  # TODO: 10, 100, 1000, 10000
             return reward
 
         def reward_PB_ste():
@@ -975,107 +974,16 @@ class IEMEnv(gym.Env):
 
             self.state_many = np.array([T_a, C_a, energy_new_ratio])
             self.compact_PB = self.compactification(self.PB, self.init_state)
-            self.normalize_state = self.compactification(
-                self.state_many, self.init_state
-            )
+            self.normalize_state = self.compactification(self.state_many, self.init_state)
 
             # self.state_many = np.array([T_a, C_a])
             if self.done_state_inside_planetary_boundaries():
                 reward = 0
             else:
-                norm = np.linalg.norm(self.normalize_state - self.compact_PB)
+                norm = - np.linalg.norm(self.normalize_state - self.compact_PB)
                 reward = norm
+                
             return reward
-
-        def reward_multi_normalized():
-            """多维归一化奖励计算"""
-            # 1. 获取当前状态
-            T_a = self.state[0]  # 温度
-            C_a = self.state[1]  # 大气碳浓度
-            E21 = self.state[5]  # 可再生能源1
-            E22 = self.state[6]  # 可再生能源2
-            E23 = self.state[7]  # 可再生能源3
-            E24 = self.state[8]  # 可再生能源4
-            E12 = self.state[9]  # 可再生能源1
-            E11 = (
-                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                - E12
-                - E21
-                - E22
-                - E23
-                - E24
-            )  # 可再生能源1
-
-            # 2. 定义归一化参数
-            norm_params = {
-                "temperature": {
-                    "min": 0.0,  # 自我统计出来的，
-                    "max": 4.0,
-                    "target": 1.5,
-                    "weight": 0.4,
-                },
-                "carbon": {
-                    "min": 350.0,
-                    "max": 1000.0,
-                    "target": 972.13,
-                    "weight": 0.3,
-                },
-                "renewable": {"min": 0.0, "max": 0.8, "target": 0.77, "weight": 0.3},
-            }
-
-            # 3. 归一化函数
-            def normalize(value, min_val, max_val):
-                """将值归一化到[0,1]区间"""
-                return (value - min_val) / (max_val - min_val)
-
-            # 4. 计算各维度的归一化奖励
-            # 温度奖励
-            norm_T = normalize(
-                T_a,
-                norm_params["temperature"]["min"],
-                norm_params["temperature"]["max"],
-            )
-            temp_reward = -abs(
-                norm_T
-                - normalize(
-                    norm_params["temperature"]["target"],
-                    norm_params["temperature"]["min"],
-                    norm_params["temperature"]["max"],
-                )
-            )
-
-            # 碳浓度奖励
-            norm_C = normalize(
-                C_a, norm_params["carbon"]["min"], norm_params["carbon"]["max"]
-            )
-            carbon_reward = -abs(
-                norm_C
-                - normalize(
-                    norm_params["carbon"]["target"],
-                    norm_params["carbon"]["min"],
-                    norm_params["carbon"]["max"],
-                )
-            )
-
-            # 可再生能源奖励
-            total_renewable = (E21 + E22 + E23 + E24) / (
-                E21 + E22 + E23 + E24 + E12 + E11
-            )
-            norm_R = normalize(
-                total_renewable,
-                norm_params["renewable"]["min"],
-                norm_params["renewable"]["max"],
-            )
-            renewable_reward = norm_R  # 可再生能源比例越高越好
-
-            # 5. 计算加权总奖励
-            total_reward = (
-                norm_params["temperature"]["weight"] * temp_reward
-                + norm_params["carbon"]["weight"] * carbon_reward
-                + norm_params["renewable"]["weight"] * renewable_reward
-            )
-
-            return total_reward
 
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
@@ -1086,36 +994,10 @@ class IEMEnv(gym.Env):
             # 判断是否超过临界状态
             if T > self.T_critical:
                 # 超过临界状态的 reward 计算
-                reward = -self.eta_three * (T - self.T_target) ** 3
-
+                reward = - 100 * (T - self.T_target) 
             else:
                 # 未超过临界状态的 reward 计算
-                reward = -self.eta_three * (T - self.T_target) ** 2
-
-            return reward
-
-        def reward_change_temperature():
-            # 根据一正多负来计算 reward
-            # 一正： 温度下降为正
-            # 多负： 碳排放量上升为负
-
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            """使用权重系数处理不同量纲的奖励"""
-            T_a = self.state[0]
-
-            # 温度变化（单位：℃）
-            temp_change = self.previous_T_a - T_a
-
-            # 权重系数（基于物理意义设计）
-            w_temp = 1.0  # 每降低1℃的奖励权重
-
-            # 计算加权奖励
-            temp_reward = w_temp * temp_change
-
-            # 更新历史值
-            self.previous_T_a = T_a
-
-            reward = temp_reward
+                reward = - 10 * (T - self.T_target) 
 
             return reward
 
@@ -1134,7 +1016,7 @@ class IEMEnv(gym.Env):
                 - E24
             )  # 可再生能源1
 
-            desirable_share_renewable = 0.77
+            desirable_share_renewable = 0.4
             reward = 0.0
             if (E21 + E22 + E23 + E24) / (
                 E21 + E22 + E23 + E24 + E12 + E11
@@ -1145,90 +1027,19 @@ class IEMEnv(gym.Env):
 
             return reward
 
-        def simple():
-            if self.done_state_inside_planetary_boundaries():
-                reward = 0
-            else:
-                reward = 1
-            return reward
-
         def simple_spare():
             if self.good_sustainable_state():
                 reward = 1
                 
             elif self.done_state_inside_planetary_boundaries():
                 reward = -1
+                
             else:
                 reward = 0
+                
             return reward
 
         ################# gpt 设计的奖励函数 ##################
-        def reward_temperature_reduction_focused():
-            """聚焦温度降低的奖励函数"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            # 比较当前温度与前一时间步温度
-            temp_change = self.previous_T_a - T_a
-
-            # 温度变化的指数化奖励（放大小变化）
-            if temp_change > 0:  # 温度下降
-                temp_reward = 5.0 * math.exp(10 * temp_change) - 1  # 指数放大小幅下降
-            else:  # 温度上升或不变
-                temp_reward = -3.0 * math.exp(5 * abs(temp_change))  # 惩罚温度上升
-
-            # 目标成就奖励（当温度接近目标时额外奖励）
-            target_bonus = 0
-            if T_a < 1.7:  # 接近1.5度目标
-                target_bonus = 3.0 * (1.7 - T_a)
-
-            # 更新历史状态
-            self.previous_T_a = T_a
-
-            return temp_reward + target_bonus
-
-        def reward_time_sensitive():
-            """时间敏感的阶段性奖励函数"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            # 计算当前模拟进度百分比
-            progress = (self.t - self.model_init_year) / (
-                self.model_end_year - self.model_init_year
-            )
-
-            # 早期阶段重点关注碳减排
-            if progress < 0.3:  # 前30%时间
-                # 碳浓度变化
-                carbon_change = self.previous_C_a - C_a
-                early_reward = 20 * carbon_change
-
-            # 中期阶段重点关注温度和能源转型
-            elif progress < 0.7:  # 中间40%时间
-                temp_change = self.previous_T_a - T_a
-                E11 = (
-                    self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                    - E12
-                    - E21
-                    - E22
-                    - E23
-                    - E24
-                )
-                renewable_ratio = (E21 + E22 + E23 + E24) / (
-                    E21 + E22 + E23 + E24 + E12 + E11
-                )
-                mid_reward = 15 * temp_change + 10 * (renewable_ratio - 0.3)
-                early_reward = mid_reward
-
-            # 后期阶段重点关注温度稳定
-            else:  # 最后30%时间
-                target_gap = abs(T_a - self.T_target)
-                early_reward = -15 * target_gap
-
-            # 更新历史状态
-            self.previous_T_a = T_a
-            self.previous_C_a = C_a
-
-            return early_reward
-
         def reward_time_phased_temperature():
             """基于时间阶段的温度控制奖励函数
 
@@ -1315,7 +1126,7 @@ class IEMEnv(gym.Env):
         def QuadraticReward():
             """计算二次奖励函数，根据输入的值返回奖励值"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = -np.linalg.norm(T_a - self.T_a_PB) ** 2
+            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB) ** 2
             return reward
 
         def DifferentialReward():
@@ -1328,7 +1139,7 @@ class IEMEnv(gym.Env):
             """稀疏奖励函数，只有在达到目标时才给予奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            if np.linalg.norm(T_a - self.T_a_PB) < 0.1:
+            if np.linalg.norm(T_a - self.T_a_PB) < 0.1: # 0.5 和 0.1 效果都很差
                 reward = 1
             else:
                 reward = -1
@@ -1338,10 +1149,10 @@ class IEMEnv(gym.Env):
         def PiecewiseRewardFunction():
 
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            if self.t <= 2015:
-                reward = -0.1 * np.abs(T_a - self.T_a_PB)
+            if self.t <= 2050:
+                reward = - np.abs(T_a - self.T_a_PB)
             else:
-                reward = -10 * (T_a - self.T_a_PB) ** 2
+                reward = -10 * (T_a - self.T_a_PB) 
 
             return reward
 
@@ -1350,9 +1161,7 @@ class IEMEnv(gym.Env):
             return reward_PB_temperature
         elif reward_type == "PB_ste":
             return reward_PB_ste
-        elif reward_type == "multi_normalized":
-            return reward_multi_normalized
-        elif reward_type == "ste_temperature":
+        elif reward_type == "critical_ste_temperature":
             return reward_critical_ste_temperature
         elif reward_type == "change_temperature":
             return reward_change_temperature
