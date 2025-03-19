@@ -1115,14 +1115,6 @@ class IEMEnv(gym.Env):
             return total_reward
 
         # gork 生成的回答
-
-        def ScalingReward():
-            """不仅放大了目标，而且还使其变成负的了，有助于收敛"""
-
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = -10 * np.linalg.norm(T_a - self.T_a_PB)
-            return reward
-
         def QuadraticReward():
             """计算二次奖励函数，根据输入的值返回奖励值"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
