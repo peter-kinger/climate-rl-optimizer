@@ -31,18 +31,17 @@ import random
 
 
 class IEMEnv(gym.Env):
-    def __init__(self, reward_type=None, seed=0, control_start_year=2017, **kwargs):
+    def __init__(self, reward_type=None, seed=42, control_start_year=2017, **kwargs):
         super(IEMEnv, self).__init__()
-
-        # 设置随机种子
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
 
         # 1. 模型基础设置（只需要初始化一次的常量）
         self.simulate_time()  # 时间相关
         self.inititalize_parameters()  # 物理参数
         self.load_data()  # 外部数据
+        
+        self.seed = seed
+        # 设置随机种子
+        self._set_seed(seed)
 
         # 2. gym环境设置（只需要初始化一次）
         # self.action_space = spaces.MultiDiscrete([2, 2])
@@ -71,6 +70,24 @@ class IEMEnv(gym.Env):
             "episodes": 0,
             #  'final_point': []
         }
+        
+    def _set_seed(self, seed):
+        """设置所有随机数生成器的种子"""
+        # Python 内置 random
+        random.seed(seed)
+        
+        # NumPy 随机数生成器
+        np.random.seed(seed)
+        # 设置 numpy 的随机数生成器为确定性模式
+        np.random.RandomState(seed)
+        
+        # PyTorch 随机数生成器
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
     # component of other
     @np.vectorize
@@ -113,7 +130,7 @@ class IEMEnv(gym.Env):
     def inititalize_parameters(self):
         """初始化模型中的参数"""
 
-        # -------- 气候相关参数 --------
+        # -------- 气候相关参数 --------  
         self.CO2eff = 5.35  # CO2 辐射强迫强度 (W/m^2 per doubling of CO2)
         self.lamb = 1 / 0.8  # 气候反馈参数 (W/m^2/K)
 
@@ -1310,14 +1327,13 @@ class IEMEnv(gym.Env):
 
         pass
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed=None, options=None): # 可以单独进行设置
 
         # 如果提供了随机种子，则设置随机数生成器
         if seed is not None:
-            random.seed(seed)
-            np.random.seed(seed)
-            torch.manual_seed(seed)
-
+            self.seed = seed
+            self._set_seed(seed)
+            
         ######## env 本身 的部分 ########
         # 1.储存数组部分与上一个 episode 区分开
         # 初始化状态变量

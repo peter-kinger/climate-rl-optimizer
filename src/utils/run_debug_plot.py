@@ -900,9 +900,11 @@ if __name__ == "__main__":
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
+    
+    SEED = 42
 
     # 利用 gym 函数检查环境
-    env = IEMEnv(reward_type=custom_reward_type)
+    env = IEMEnv(reward_type=custom_reward_type, seed=SEED)
     check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果

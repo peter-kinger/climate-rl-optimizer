@@ -134,8 +134,10 @@ if __name__ == "__main__":
     network_name = "Netxxx_no"
     all_episode_num = 10
 
+    SEED = 42
+
     # 利用 gym 函数检查环境
-    env = IEMEnv(reward_type=custom_reward_type)
+    env = IEMEnv(reward_type=custom_reward_type, seed=SEED)
     check_env(env)
 
     # 存储多次 episode 训练的结果
