@@ -1422,6 +1422,53 @@ class IEMEnv(gym.Env):
 
         self.state = np.array(ode_solutions[-1], dtype=np.float64)
         
+        # 新增随机扰动的初始状态: 方案 3 年，均匀分布
+        self.state[0] = self.state[0] + np.random.uniform(low=-0.104, high=+0.104)
+        self.state[1] = self.state[1] + np.random.uniform(low=-12.750, high=12.750)
+        self.state[2] = self.state[2] + np.random.uniform(low=-1.801, high=1.801)
+        self.state[3] = self.state[3] + np.random.uniform(low=-14.930, high=14.930)
+        self.state[4] = self.state[4] + np.random.uniform(low=-0.038, high=0.038)
+        self.state[5] = self.state[5] + np.random.uniform(low=-18.227, high=18.227)
+        self.state[6] = self.state[6] + np.random.uniform(low=-18.599, high=18.599)
+        self.state[7] = self.state[7] # 这几个量波动性不大
+        self.state[8] = self.state[8] 
+        self.state[9] = self.state[9]
+        
+        # # 方案2：正态分布的随机过程部分
+        # # 定义扰动幅度，
+        # noise_scales = {
+        #     'T_a': 0.1,      # 温度扰动 ±0.1K
+        #     'C_a': 0.05,     # 大气碳浓度扰动 ±5%
+        #     'C_o': 0.05,     # 海洋碳浓度扰动 ±5%
+        #     'C_od': 0.05,    # 深层海洋碳浓度扰动 ±5%
+        #     'T_o': 0.1,      # 海洋温度扰动 ±0.1K
+        #     'E21': 0.1,      # 太阳能和风能扰动 ±10%
+        #     'E22': 0.1,      # 新型可再生能源扰动 ±10%
+        #     'E23': 0.1,      # 核能扰动 ±10%
+        #     'E24': 0.1,      # 传统可再生能源扰动 ±10%
+        #     'E12': 0.1       # 生物质能扰动 ±10%
+        # }
+    
+        # # 生成随机扰动
+        # noise = np.random.normal(0, 1, 10)  # 10维标准正态分布
+        
+        # # 应用扰动到初始状态
+        # self.state = np.array([
+        #     0 + noise[0] * noise_scales['T_a'],
+        #     self.cina * (1 + noise[1] * noise_scales['C_a']),
+        #     self.cino * (1 + noise[2] * noise_scales['C_o']),
+        #     self.cinod * (1 + noise[3] * noise_scales['C_od']),
+        #     0 + noise[4] * noise_scales['T_o'],
+        #     0 + noise[5] * noise_scales['E21'],
+        #     0 + noise[6] * noise_scales['E22'],
+        #     0 + noise[7] * noise_scales['E23'],
+        #     0 + noise[8] * noise_scales['E24'],
+        #     self.energy_MYbaseline18502100_biomass[0] * (1 + noise[9] * noise_scales['E12'])
+        # ], dtype=np.float64)
+        
+        # # 确保扰动后的值在物理意义上合理
+        # self.state = np.clip(self.state, 0, None)  # 确保非负
+        
         self.t = self.control_start_year
 
         self.done = False
