@@ -548,41 +548,41 @@ class IEMEnv(gym.Env):
                 )
             )
 
-            ############################### 税收增加的部分 ##############################
-            # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
-            # 添加碳税政策的影响
-            # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
-            self.price_elasticity = (
-                - 1 # -0.3->-1
-            )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
-            self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
-            #
-            # # 碳税收入（动态累积）
-            # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
-            #
-            # 碳税对化石燃料的需求抑制
-            E11_reduction_due_to_tax = (
-                self.price_elasticity
-                * self.carbon_tax_rate
-                * self.conversion_CO2_to_energy
-            )
-            #
-            ###########################################################################
+            # ############################### 税收增加的部分 ##############################
+            # # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
+            # # 添加碳税政策的影响
+            # # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
+            # self.price_elasticity = (
+            #     - 1 # -0.3->-1
+            # )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
+            # self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
+            # #
+            # # # 碳税收入（动态累积）
+            # # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
+            # #
+            # # 碳税对化石燃料的需求抑制
+            # E11_reduction_due_to_tax = (
+            #     self.price_elasticity
+            #     * self.carbon_tax_rate
+            #     * self.conversion_CO2_to_energy
+            # )
+            # #
+            # ###########################################################################
 
-            E11 = (
-                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                - E12
-                - E21
-                - E22
-                - E23
-                - E24
-            )  # in this model set up, E terms are absoluate values
+            # E11 = (
+            #     self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            #     - E12
+            #     - E21
+            #     - E22
+            #     - E23
+            #     - E24
+            # )  # in this model set up, E terms are absoluate values
 
-            ############################### 税收增加的部分 ##############################
-            E11 = E11 * (
-                1 + E11_reduction_due_to_tax
-            )  # 由于碳税整体消耗也变小了 # TODO E11 计算的顺序
-            ###########################################################################
+            # ############################### 税收增加的部分 ##############################
+            # E11 = E11 * (
+            #     1 + E11_reduction_due_to_tax
+            # )  # 由于碳税整体消耗也变小了 # TODO E11 计算的顺序
+            # ###########################################################################
 
             E11fraction = (
                 E11 / self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
@@ -1384,7 +1384,7 @@ class IEMEnv(gym.Env):
 
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
-        self.carbon_tax_rate = 0
+        self.carbon_tax_rate = 0 # 保证默认的可以运行
 
         # 2. 重置时间和步数
         self.t = self.model_init_year
