@@ -45,8 +45,10 @@ class IEMEnv(gym.Env):
 
         # 2. gym环境设置（只需要初始化一次）
         # self.action_space = spaces.MultiDiscrete([2, 2])
-        self.action_space = spaces.Discrete(4)
-
+        # self.action_space = spaces.Discrete(4)
+        # 设置一个 4维的 离散空间，每个维度有 2 个离散值
+        self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
+        
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
         )
@@ -404,9 +406,16 @@ class IEMEnv(gym.Env):
                 self.CO2emission_net.append(0)  # net
 
             else:
-                taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
-                taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
-                taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
+                ################ DRL 管控部分 ################
+                if self.taoACE_drl == 0:
+                    taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
+                    taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
+                    taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
+                else:
+                    taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0))
+                    taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5))
+                    taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0))
+                ############################################
                 if taoACE1 < 1:
                     taoACE1 = 1
                 if taoACE2 < 1:
@@ -548,35 +557,35 @@ class IEMEnv(gym.Env):
                 )
             )
 
-            # ############################### 税收增加的部分 ##############################
-            # # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
-            # # 添加碳税政策的影响
-            # # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
+            ############################### 税收增加的部分 ##############################
+            # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
+            # 添加碳税政策的影响
+            # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
             # self.price_elasticity = (
             #     - 1 # -0.3->-1
             # )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
             # self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
-            # #
-            # # # 碳税收入（动态累积）
-            # # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
-            # #
+            #
+            # # 碳税收入（动态累积）
+            # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
+            #
             # # 碳税对化石燃料的需求抑制
             # E11_reduction_due_to_tax = (
             #     self.price_elasticity
             #     * self.carbon_tax_rate
             #     * self.conversion_CO2_to_energy
             # )
-            # #
-            # ###########################################################################
+            #
+            ###########################################################################
 
-            # E11 = (
-            #     self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            #     - E12
-            #     - E21
-            #     - E22
-            #     - E23
-            #     - E24
-            # )  # in this model set up, E terms are absoluate values
+            E11 = (
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
+            )  # in this model set up, E terms are absoluate values
 
             # ############################### 税收增加的部分 ##############################
             # E11 = E11 * (
@@ -689,16 +698,36 @@ class IEMEnv(gym.Env):
         dT_o_dt = 1 / self.kappa_o * self.Do * (T_a - T_o)
 
         # # # # # #  E21- Renewable using current technology (Solar and Wind)
-        eta0_21 = 1 / 100  # 2 or 0.1
+        ################ DRL 管控部分 ################
+        if self.eta0_21_drl == 0:
+            eta0_21 = 1 / 100  # 2 or 0.1
+        else:
+            eta0_21 = 2 / 100
+        ############################################
 
         if int(time) not in self.time_count:
-            self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0)))  # +0.6
+            
+            ################ DRL 管控部分 ################
+            if self.taoR21_drl == 0:
+                self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0)))  # +0.6
+            else:
+                self.taoR21.append(50 * np.exp(-2 * (T_a + 0.6)))
+            ############################################
+            
             self.taoP21.append(self.taoR21[-1] / 2)
             self.taoDV21.append(0)
-            self.taoDF21.append(
-                50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
-            )  # X2 sensitivity test July 17, 2020
-
+            
+            ################ DRL 管控部分 ################
+            if self.taoDF21_drl == 0:
+                self.taoDF21.append(
+                    50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
+                )  # X2 sensitivity test July 17, 2020
+            else:
+                self.taoDF21.append(
+                    50 / 2 / (1 + 2 * ((T_a + 0.6) ** 2))
+                )  # X2 sensitivity test July 17, 2020
+            ############################################
+            
             # k21=0.65*energy_MYadjusted18502100_total_plus_B3B[-1]
             self.k21.append(
                 0.65 * (self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1])
@@ -771,14 +800,23 @@ class IEMEnv(gym.Env):
             # dE21_dt=(1-E21/k21[-1])*E21/tao21[-1]+eta21[-1] # use this for the fully coupled model to demonstrate the asumption of E21 term is working
 
         else:
-            dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[
-                -1
-            ]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
+            ################ DRL 管控部分 ################
+            if self.dE21_dt_drl == 6.03:
+                dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[-1]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
+            else:
+                dE21_dt = 0
+            ############################################
             # dE21_dt =   0 # make this 0 to stop future growth of renewable at all
             # dE21_dt =   (1-E21/k21[-1])*E21/tao21[2015-1850]
+            
 
         # # # # # #  E22: Renewable Using New Technology
-        eta0_22 = 1 / 100  # 0.1 or 2
+        ################ DRL 管控部分 ################
+        if self.eta0_22_drl == 0:
+            eta0_22 = 1 / 100  # 0.1 or 2
+        else:
+            eta0_22 = 2 / 100
+        ############################################
 
         if int(time) not in self.time_count:
             self.taoR22.append(
@@ -787,7 +825,12 @@ class IEMEnv(gym.Env):
             self.taoP22.append(self.taoP21[-1])
             self.taoDF22.append(self.taoDF21[-1])
 
-            taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
+            ################ DRL 管控部分 ################
+            if self.taoDV22_temp_drl == 0:
+                taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
+            else:
+                taoDV22_temp = 30 / (1 + (T_a + 0.6) ** 2)  # +0.6
+            ############################################
 
             if taoDV22_temp < 4:  # Yangyang removed this on July 15, 2020
                 taoDV22_temp = 4
@@ -861,7 +904,12 @@ class IEMEnv(gym.Env):
         elif time < 2016:
             dE22_dt = E22_present / (2016 - 2010)
         else:
-            dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[-1]
+            ################ DRL 管控部分 ################
+            if self.dE22_dt_drl == 6.08:
+                dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[-1]
+            else:
+                dE22_dt = 0
+            ############################################
             # dE22_dt =   0 # make this 0 to stop future growth of renewable
             # dE22_dt =   (1-E22/k22[-1])*E22/tao22[2015-1850]
 
@@ -1224,6 +1272,57 @@ class IEMEnv(gym.Env):
             
         else:
             raise ValueError("没有对应的 action")
+        
+        
+    def apply_action_iseec_case_one(self, action):
+        """主要是根据原文中设置的了几个 case 来进行设计
+
+        Args:
+            action (_type_): _description_
+        """
+        
+        # 1. 是否加快社会响应
+        # dE21_dt : 2016 时候计算得到 6.03， 不发展时候就是 0 （作用时间：2017以后）
+        # dE22_dt : 2016 时候计算得到 6.08， 不发展时候就是 0 （作用时间：2017以后）
+        if action[0] == 0:
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+        else:
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+        
+        # 2. 是否加快可再生能源技术扩散时间 / ACE 大气碳提取技术的启动投资
+        # 2.1 是否加快可再生能源技术扩散时间         
+        # self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0))) -》 0 / 0.6 切换
+        # self.taoDF21.append(50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))) -》 0 / 0.6 切换
+        # self.taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6 -》 0 / 0.6 切换
+        if action[1] == 0:
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+        else:
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+        # taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0)) -> 0 / 0.6 切换
+        # taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5)) -> 0 / 0.6 切换
+        # taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0)) -> 0 / 0.6 切换
+        if action[2] == 0:
+            self.taoACE_drl = 0
+        else:
+            self.taoACE_drl = 0.6
+        
+        
+        # 3. 大幅增加可再生能源技术的启动投资
+        # eta0_21 = 2 / 100 -> 0.1 / 1 / 2 切换, 先按照 1 / 2 来进行对比(效果明显)
+        # eta0_22 = 2 / 100 -> 0.1 / 1 / 2 切换   
+        if action[3] == 0:
+            self.eta0_21_drl = 1 / 2
+            self.eta0_22_drl = 1 / 2
+        else:
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
 
     def apply_action_copy(self, action):
 
@@ -1381,10 +1480,20 @@ class IEMEnv(gym.Env):
         )
 
         ###########  关于 action 部分的重置 ###################
-
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
         self.carbon_tax_rate = 0 # 保证默认的可以运行
+        # 全用 action = 0 默认的来保证预热数据
+        self.dE21_dt_drl = 6.03
+        self.dE22_dt_drl = 6.08
+        
+        self.taoR21_drl = 0
+        self.taoDF21_drl = 0
+        self.taoDV22_temp_drl = 0
+        
+        self.taoACE_drl = 0
+        self.eta0_21_drl = 1 / 2
+        self.eta0_22_drl = 1 / 2
 
         # 2. 重置时间和步数
         self.t = self.model_init_year
