@@ -895,7 +895,7 @@ if __name__ == "__main__":
 
     # 自定义属性
     custom_reward_type = "PB_temperature"
-    rl_model_name = "sample"
+    rl_model_name = "fixed_action_0001"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
@@ -913,6 +913,8 @@ if __name__ == "__main__":
     # 在主程序开始处定义固定动作
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
+    # fixed_action = np.array([0, 0, 0, 0])
+    fixed_action = np.array([0, 0, 0, 1])
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
@@ -931,8 +933,8 @@ if __name__ == "__main__":
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
             
-            # action = fixed_action
-            action = env.action_space.sample()
+            action = fixed_action
+            # action = env.action_space.sample()
             
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 

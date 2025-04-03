@@ -1304,7 +1304,8 @@ class IEMEnv(gym.Env):
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+        
+        # 2.2 是否加快 ACE 大气碳提取技术的启动投资
         # taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0)) -> 0 / 0.6 切换
         # taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5)) -> 0 / 0.6 切换
         # taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0)) -> 0 / 0.6 切换
@@ -1318,8 +1319,8 @@ class IEMEnv(gym.Env):
         # eta0_21 = 2 / 100 -> 0.1 / 1 / 2 切换, 先按照 1 / 2 来进行对比(效果明显)
         # eta0_22 = 2 / 100 -> 0.1 / 1 / 2 切换   
         if action[3] == 0:
-            self.eta0_21_drl = 1 / 2
-            self.eta0_22_drl = 1 / 2
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
         else:
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
@@ -1492,8 +1493,9 @@ class IEMEnv(gym.Env):
         self.taoDV22_temp_drl = 0
         
         self.taoACE_drl = 0
-        self.eta0_21_drl = 1 / 2
-        self.eta0_22_drl = 1 / 2
+        
+        self.eta0_21_drl = 1 / 100
+        self.eta0_22_drl = 1 / 100
 
         # 2. 重置时间和步数
         self.t = self.model_init_year
@@ -1637,7 +1639,8 @@ class IEMEnv(gym.Env):
         ######### action 和 演进的部分放在了一起 #####
         # self.apply_action(action) # 选择切换到底是哪个动作
         # self.apply_action_ste(action)
-        self.apply_action_ste(action)
+        # self.apply_action_ste(action)
+        self.apply_action_iseec_case_one(action)
 
         self.state = self.get_observation(next_t)  # 每次求解的 state 都是下一次
         ##########################################
@@ -1706,17 +1709,53 @@ class IEMEnv(gym.Env):
         #     raise ValueError("没有对应的 action")
 
         # """1维度时候计算获取的"""
-        if action_numpy == 0:
-            return 0, "default"
-        elif action_numpy == 1:
-            return 1, "policy_1"
-        elif action_numpy == 2:
-            return 2, "policy_2"
-        elif action_numpy == 3:
-            return 3, "policy_3"
+        # if action_numpy == 0:
+        #     return 0, "default"
+        # elif action_numpy == 1:
+        #     return 1, "policy_1"
+        # elif action_numpy == 2:
+        #     return 2, "policy_2"
+        # elif action_numpy == 3:
+        #     return 3, "policy_3"
+        # else:
+        #     raise ValueError("没有对应的 action")
+        
+        # 根据目前的 apply_action_iseec_case_one 种类来赋值
+        if np.array_equal(action_numpy, np.array([0, 0, 0, 0])):
+            return 0, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([1, 0, 0, 0])):
+            return 1, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([0, 1, 0, 0])):
+            return 2, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([1, 1, 0, 0])):
+            return 3, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([0, 0, 1, 0])):
+            return 4, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([1, 0, 1, 0])):
+            return 5, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([0, 1, 1, 0])):
+            return 6, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([1, 1, 1, 0])):
+            return 7, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        elif np.array_equal(action_numpy, np.array([0, 0, 0, 1])):
+            return 8, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([1, 0, 0, 1])):
+            return 9, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([0, 1, 0, 1])):
+            return 10, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([1, 1, 0, 1])):
+            return 11, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([0, 0, 1, 1])):
+            return 12, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([1, 0, 1, 1])):
+            return 13, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([0, 1, 1, 1])):
+            return 14, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif np.array_equal(action_numpy, np.array([1, 1, 1, 1])):
+            return 15, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         else:
             raise ValueError("没有对应的 action")
-
+         
     def render(self, mode="human"):
 
         # 方式 2 ，过程中多个绘制
