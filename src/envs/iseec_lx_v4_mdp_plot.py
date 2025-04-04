@@ -31,7 +31,7 @@ import random
 
 
 class IEMEnv(gym.Env):
-    def __init__(self, reward_type=None, seed=42, control_start_year=2017, **kwargs):
+    def __init__(self, reward_type=None, seed=None, control_start_year=2017, **kwargs):
         super(IEMEnv, self).__init__()
 
         # 1. 模型基础设置（只需要初始化一次的常量）
@@ -39,9 +39,12 @@ class IEMEnv(gym.Env):
         self.inititalize_parameters()  # 物理参数
         self.load_data()  # 外部数据
         
-        self.seed = seed
-        # 设置随机种子
-        self._set_seed(seed)
+        # 设置如果 seed 不为 None 时候
+        
+        if seed is not None:
+            self.seed = seed
+            # 设置随机种子
+            self._set_seed(seed)
 
         # 2. gym环境设置（只需要初始化一次）
         # self.action_space = spaces.MultiDiscrete([2, 2])
@@ -1220,24 +1223,12 @@ class IEMEnv(gym.Env):
             return reward_PB_ste
         elif reward_type == "critical_ste_temperature":
             return reward_critical_ste_temperature
-        elif reward_type == "change_temperature":
-            return reward_change_temperature
         elif reward_type == "desirable_region_renewable":
             return reward_desirable_region_renewable
-        elif reward_type == "simple":
-            return simple
         elif reward_type == "simple_spare":
             return simple_spare
-        elif reward_type == "temperature_reduction_focused":
-            return reward_temperature_reduction_focused
-        elif reward_type == "time_sensitive":
-            return reward_time_sensitive
-        elif reward_type == "normalized_shaping":
-            return reward_normalized_shaping
         elif reward_type == "time_phased_temperature":
             return reward_time_phased_temperature
-        elif reward_type == "ScalingReward":
-            return ScalingReward
         elif reward_type == "QuadraticReward":
             return QuadraticReward
         elif reward_type == "DifferentialReward":

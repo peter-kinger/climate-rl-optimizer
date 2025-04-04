@@ -895,16 +895,16 @@ if __name__ == "__main__":
 
     # 自定义属性
     custom_reward_type = "PB_temperature"
-    rl_model_name = "fixed_action_0001"
+    rl_model_name = "fixed_action_0010"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
     
-    SEED = 42
+    # SEED = 42 # 非必要不指定
 
     # 利用 gym 函数检查环境
-    env = IEMEnv(reward_type=custom_reward_type, seed=SEED)
+    env = IEMEnv(reward_type=custom_reward_type)
     check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = np.array([0, 0, 0, 1])
+    fixed_action = np.array([0, 0, 1, 0])
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
