@@ -1074,7 +1074,7 @@ class IEMEnv(gym.Env):
         ################# ays copan 基本类型 reward 考虑 ##################
 
         def reward_desirable_region_renewable():
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state = self.state
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             E11 = (
                 self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
                 - E12
