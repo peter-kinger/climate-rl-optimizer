@@ -363,10 +363,16 @@ class IEMEnv(gym.Env):
                 * self.energy_addl_B3B_EnhanceRatio[-1]
             )  # additional energy due to B3B
 
-            self.energy_MYadjusted18502100_total_plus_B3B.append(
+
+            # 设置如果出现 异常报错，就 Pass
+            try:
+                self.energy_MYadjusted18502100_total_plus_B3B.append(
                 self.energy_MYadjusted18502100_total[int(time) - self.model_init_year]
-                + energy_addl_B3B
-            )  # including B3B but not ACE3
+                + energy_addl_B3B)  # including B3B but not ACE3
+            except Exception as e:
+                self.energy_MYadjusted18502100_total_plus_B3B.append(
+                self.energy_MYadjusted18502100_total[-1]
+                + energy_addl_B3B)  # including B3B but not ACE3
 
         ############# ACE3 实现大气碳提取（ACE）技术的模拟 ############
         ### Aug 21 ACE   ###
@@ -1021,37 +1027,38 @@ class IEMEnv(gym.Env):
                 reward = 0
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
-                reward = reward * 100  # TODO: 10, 100, 1000, 10000
-            return reward
-
-        def reward_PB_ste():
-            # compactification 计算方式
-
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            E11 = (
-                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                - E12
-                - E21
-                - E22
-                - E23
-                - E24
-            )
-            energy_new_ratio = (E21 + E22 + E23 + E24) / (
-                E21 + E22 + E23 + E24 + E12 + E11
-            )
-
-            self.state_many = np.array([T_a, C_a, energy_new_ratio])
-            self.compact_PB = self.compactification(self.PB, self.init_state)
-            self.normalize_state = self.compactification(self.state_many, self.init_state)
-
-            # self.state_many = np.array([T_a, C_a])
-            if self.done_state_inside_planetary_boundaries():
-                reward = 0
-            else:
-                norm = - np.linalg.norm(self.normalize_state - self.compact_PB)
-                reward = norm
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             return reward
+
+        # def reward_PB_ste():
+        #     # compactification 计算方式
+
+        #     T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+        #     E11 = (
+        #         self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+        #         - E12
+        #         - E21
+        #         - E22
+        #         - E23
+        #         - E24
+        #     )
+        #     energy_new_ratio = (E21 + E22 + E23 + E24) / (
+        #         E21 + E22 + E23 + E24 + E12 + E11
+        #     )
+
+        #     self.state_many = np.array([T_a, C_a, energy_new_ratio])
+        #     self.compact_PB = self.compactification(self.PB, self.init_state)
+        #     self.normalize_state = self.compactification(self.state_many, self.init_state)
+
+        #     # self.state_many = np.array([T_a, C_a])
+        #     if self.done_state_inside_planetary_boundaries():
+        #         reward = 0
+        #     else:
+        #         norm = - np.linalg.norm(self.normalize_state - self.compact_PB)
+        #         reward = norm
+                
+        #     return reward
 
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
@@ -1075,6 +1082,7 @@ class IEMEnv(gym.Env):
 
         def reward_desirable_region_renewable():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
             E11 = (
                 self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
                 - E12
@@ -1097,13 +1105,14 @@ class IEMEnv(gym.Env):
 
         def simple_spare():
             if self.good_sustainable_state():
-                reward = 1
+                reward = 1 # 因为还没有到达最终目的，只是小奖励
                 
             elif self.done_state_inside_planetary_boundaries():
                 reward = -1
                 
             else:
                 reward = 0
+                
                 
             return reward
 
@@ -1182,13 +1191,6 @@ class IEMEnv(gym.Env):
 
             return total_reward
 
-        # gork 生成的回答
-        def QuadraticReward():
-            """计算二次奖励函数，根据输入的值返回奖励值"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB) ** 2
-            return reward
-
         def DifferentialReward():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             current_deviation = np.linalg.norm(T_a - self.T_a_PB)
@@ -1213,6 +1215,84 @@ class IEMEnv(gym.Env):
                 reward = - np.abs(T_a - self.T_a_PB)
             else:
                 reward = -10 * (T_a - self.T_a_PB) 
+
+            return reward
+    
+        ############### 巴黎协定奖励函数 ###############
+        # 下面是批量试验的过程
+        def paris_agreement_reward():
+            """巴黎协定奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB) # ** 2
+            return reward
+    
+        def paris_agreement_reward_2():
+            """巴黎协定奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  ** 2
+            return reward
+        
+        def paris_agreement_reward_3():
+            """加入稀疏奖励考虑"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
+            
+            current_year = self.t
+            if current_year > 2095:
+                if T_a > self.T_a_PB:  
+                    reward = reward - 10
+                else:
+                    reward = reward - 10
+            return reward
+        
+        def paris_agreement_reward_multiple():
+            """基于巴黎协定奖励函数，进行多阶段设置"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            reward = - 10 * np.linalg.norm(C_a - self.C_a_PB) 
+      
+            return reward
+        
+        def paris_agreement_reward_positive_negative():
+            """加入稀疏奖励考虑"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
+            
+            current_year = self.t
+            if current_year > 2095:
+                if T_a > self.T_a_PB:  
+                    reward = reward + 10
+                else:
+                    reward = reward - 10
+            return reward
+    
+        def paris_agreement_reward_time():
+            """基于时间阶段的奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            current_year = self.t
+            
+            if current_year < 2030:
+                reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
+                reduction = (877 - C_a) / 877
+                if reduction > 0.45:
+                    reward = reward + 10
+                
+            if current_year >= 2030 and current_year <= 2050:
+                norm_T = T_a / 4.0 # 温度归一化 
+                norm_C = C_a / 1000.0 # 碳浓度归一化 
+                r_temp = -0.6 * 10 * (norm_T - (1.5 / 4.0))  # 惩罚温度偏离1.5°C 
+                
+                r_carbon = -0.4 * (norm_C - (970 / 1000.0)) # 净零排放奖励/惩罚 
+
+                reward = r_temp + r_carbon
+                
+            if current_year >= 2050:
+                reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
+                if T_a < self.T_a_PB:
+                    reward = reward + 1
+                else:
+                    reward = reward - 1
 
             return reward
 
@@ -1411,7 +1491,6 @@ class IEMEnv(gym.Env):
     def apply_action_copan(self, action):
         """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
         主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-
         gym example:
         self.action_space = spaces.MultiDiscrete([2, 2, 2])
         """
@@ -1807,4 +1886,5 @@ class IEMEnv(gym.Env):
     def get_variables(self):
         """获取变量"""
         return self.data
+
 
