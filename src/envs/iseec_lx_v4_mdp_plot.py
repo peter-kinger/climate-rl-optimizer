@@ -31,7 +31,7 @@ import random
 
 
 class IEMEnv(gym.Env):
-    def __init__(self, reward_type=None, seed=None, control_start_year=2017, **kwargs):
+    def __init__(self, reward_type=None, seed=None, control_start_year=2017, render_mode_diy =None, **kwargs):
         super(IEMEnv, self).__init__()
 
         # 1. 模型基础设置（只需要初始化一次的常量）
@@ -65,6 +65,8 @@ class IEMEnv(gym.Env):
 
         # 模拟开始时间
         self.control_start_year = control_start_year  # TODO
+        
+        self.render_mode_diy = render_mode_diy
 
         # run information in a dictionary
         self.data = {
@@ -74,6 +76,24 @@ class IEMEnv(gym.Env):
             "step_idx": 0,
             "episodes": 0,
             #  'final_point': []
+        }
+        
+        # 5.记录过程可视化的部分
+        self.state_history = {  # 每次只记录当前 episode 的信息
+            "time": [],
+            "T_a": [],
+            "C_a": [],
+            "C_o": [],
+            "C_od": [],
+            "T_o": [],
+            "E21": [],
+            "E22": [],
+            "E23": [],
+            "E24": [],
+            "E12": [],
+            "reward": [],
+            "action": [],
+            "action_all_dim": [],
         }
         
     def _set_seed(self, seed):
@@ -1030,35 +1050,76 @@ class IEMEnv(gym.Env):
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             return reward
+        
+                # 距离计算版本
+        def reward_PB_temperature_good():
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-        # def reward_PB_ste():
-        #     # compactification 计算方式
-
-        #     T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-        #     E11 = (
-        #         self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-        #         - E12
-        #         - E21
-        #         - E22
-        #         - E23
-        #         - E24
-        #     )
-        #     energy_new_ratio = (E21 + E22 + E23 + E24) / (
-        #         E21 + E22 + E23 + E24 + E12 + E11
-        #     )
-
-        #     self.state_many = np.array([T_a, C_a, energy_new_ratio])
-        #     self.compact_PB = self.compactification(self.PB, self.init_state)
-        #     self.normalize_state = self.compactification(self.state_many, self.init_state)
-
-        #     # self.state_many = np.array([T_a, C_a])
-        #     if self.done_state_inside_planetary_boundaries():
-        #         reward = 0
-        #     else:
-        #         norm = - np.linalg.norm(self.normalize_state - self.compact_PB)
-        #         reward = norm
+            if self.done_state_inside_planetary_boundaries():
+                reward = 0
+            else:
+                reward = - np.linalg.norm(T_a - self.T_a_PB)
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
-        #     return reward
+            if self.t >= 2080: # 这个给的波动阶段，太大了，而且应该是添加，而不是
+                if T_a < self.T_a_PB:
+                    reward = 100
+                else:
+                    reward = -100
+                
+            return reward
+    
+        def reward_PB_temperature_add():
+        
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            if self.done_state_inside_planetary_boundaries():
+                reward = 0
+            else:
+                reward = - np.linalg.norm(T_a - self.T_a_PB)
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
+                
+            if self.t >= 2090: # 这个给的波动阶段，太大了，而且应该是添加，而不是
+                if T_a < self.T_a_PB:
+                    reward = reward + 10
+                else:
+                    reward = reward - 10
+                
+            return reward
+        
+        def reward_PB_temperature_simple_gpt():
+            """极简奖励函数：结合终年控温目标和动作探索"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            current_year = self.t  # 当前年份
+            
+            # 1. 温度控制奖励
+            # 基础温度偏差惩罚
+            if self.done_state_inside_planetary_boundaries():
+                temp_reward = 0
+            else:
+                temp_reward = - np.linalg.norm(T_a - self.T_a_PB)
+                temp_reward = temp_reward * 10  # TODO: 10, 100, 1000, 10000
+            
+            # 如果接近终年，增加温度控制的权重
+            if current_year > 2080:
+                temp_reward *= 2  # 终年附近加倍温度控制重要性
+            
+            if self.t >= 2090:
+                if T_a < self.T_a_PB:
+                    temp_reward = temp_reward + 100
+            
+            # 2. 简单动作探索奖励
+            # 如果连续使用相同动作，给予小惩罚
+            if hasattr(self, 'prev_action') and np.array_equal(self.prev_action, self.current_action):
+                exploration_reward = -3
+            else:
+                exploration_reward = 0
+            
+            # 保存当前动作用于下次比较
+            self.prev_action = self.current_action.copy() if hasattr(self, 'current_action') else None
+            
+            # 总奖励
+            return temp_reward + exploration_reward
 
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
@@ -1317,6 +1378,12 @@ class IEMEnv(gym.Env):
             return SparseReward
         elif reward_type == "PiecewiseRewardFunction":
             return PiecewiseRewardFunction
+        elif reward_type == "PB_temperature_good":
+            return reward_PB_temperature_good
+        elif reward_type == "PB_temperature_add":
+            return reward_PB_temperature_add
+        elif reward_type == "PB_temperature_simple_gpt":
+            return reward_PB_temperature_simple_gpt
         else:
             raise ValueError("没有对应的奖励函数")
 
@@ -1395,6 +1462,8 @@ class IEMEnv(gym.Env):
         else:
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
+            
+        self.current_action = action.copy() if hasattr(action, 'copy') else action
 
     def apply_action_copy(self, action):
 
@@ -1653,6 +1722,11 @@ class IEMEnv(gym.Env):
         self.t = self.control_start_year
 
         self.done = False
+        
+        if self.render_mode_diy == "human":
+            self.render()
+            
+        self.prev_action = None
 
         # 记录部分
         # 周期 episode 内
@@ -1672,6 +1746,23 @@ class IEMEnv(gym.Env):
             "action": [],
             "action_all_dim": [],
         }
+        
+        # Record state history - add this section
+        self.state_history["time"].append(self.t)
+        self.state_history["T_a"].append(self.state[0])
+        self.state_history["C_a"].append(self.state[1])
+        self.state_history["C_o"].append(self.state[2])
+        self.state_history["C_od"].append(self.state[3])
+        self.state_history["T_o"].append(self.state[4])
+        self.state_history["E21"].append(self.state[5])
+        self.state_history["E22"].append(self.state[6])
+        self.state_history["E23"].append(self.state[7])
+        self.state_history["E24"].append(self.state[8])
+        self.state_history["E12"].append(self.state[9])
+        
+        # 这里比较特殊，因为 reset 时候 Action 是随机的，所以这里先设置一个默认的
+        self.state_history["action"].append(0)
+        self.state_history["reward"].append(0)
 
         # 根据新版 gym 的要求，reset 方法需要返回 observation 和 info
         return self.state, {}
@@ -1720,6 +1811,7 @@ class IEMEnv(gym.Env):
 
         # 计算奖励
         reward = self.reward_function()
+        
 
         # Record state history - add this section
         action_number_env, action_name_env = self.action2number_env(action)
@@ -1740,6 +1832,12 @@ class IEMEnv(gym.Env):
         
         # 记录总共训练的次数
         self.data["step_idx"] += 1 # all episodes 记录的
+        
+        
+        if self.render_mode_diy == "human":
+            if self.data["step_idx"] % 2100 == 0:
+                self.render()
+        
 
         # 空字典代替
         truncated = False
@@ -1834,8 +1932,10 @@ class IEMEnv(gym.Env):
         action = self.state_history["action"]
         reward = self.state_history["reward"]
 
-        clear_output(True)
-        fig, axs = plt.subplots(3, 1, figsize=(20, 10))
+        if not hasattr(self, 'fig'):
+            # 首次调用时创建图形
+            plt.ion()  # 打开交互模式
+            fig, axs = plt.subplots(3, 1, figsize=(20, 10))
 
         # 左上角绘制 state
         # TODO: 多目标协同，最上面可以放入多个 state
@@ -1865,7 +1965,15 @@ class IEMEnv(gym.Env):
         # axs[1, 1].axis("off")
 
         plt.tight_layout()
-        plt.show()
+    
+        # 使用 pause 来更新图形
+        plt.pause(1)  # 暂停一小段时间来更新图形
+
+        # 清除所有子图但保持窗口
+        for ax in axs:
+            ax.clear()
+
+
 
     def close(self):
         """关闭图形"""
