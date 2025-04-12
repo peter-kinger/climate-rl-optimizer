@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2024-03-19T12:00:00.000Z" agent="Mozilla/5.0" version="21.7.5" type="device">
+  <diagram id="ISEEC_Agent_Interaction" name="ISEEC智能体交互流程">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- 观测 -->
+        <mxCell id="Observation" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;观测&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2E75B6;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="70" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 开始模拟 -->
+        <mxCell id="StartSimulation" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;开始模拟&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#BF9000;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="270" y="70" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- ABM仿真 -->
+        <mxCell id="ABMSimulation" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;ABM仿真&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C55A11;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="480" y="70" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 多智能体博弈 -->
+        <mxCell id="MultiAgentGame" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;多智能体博弈&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#548235;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="170" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 策略提出 -->
+        <mxCell id="StrategyProposal" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;策略提出&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7F6000;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="270" y="170" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 谈判过程 -->
+        <mxCell id="Negotiation" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;谈判过程&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#8064A2;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="480" y="170" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 共识检查 -->
+        <mxCell id="ConsensusCheck" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;共识检查&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C00000;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="270" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 生成方案 -->
+        <mxCell id="GenerateSolution" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;生成方案&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#00B050;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="270" y="270" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 环境更新 -->
+        <mxCell id="EnvironmentUpdate" value="&lt;font style=&quot;color: rgb(255, 255, 255);&quot;&gt;环境更新&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0070C0;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="480" y="270" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- 连接线 -->
+        <mxCell id="edge1" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Observation" target="StartSimulation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge2" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="StartSimulation" target="ABMSimulation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge3" value="" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ABMSimulation" target="MultiAgentGame">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge4" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="MultiAgentGame" target="StrategyProposal">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge5" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="StrategyProposal" target="Negotiation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge6" value="" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="Negotiation" target="ConsensusCheck">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge7" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="ConsensusCheck" target="GenerateSolution">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge8" value="" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="GenerateSolution" target="EnvironmentUpdate">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="edge9" value="" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="EnvironmentUpdate" target="Observation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- 共识检查的循环连接 -->
+        <mxCell id="edge10" value="否" style="edgeStyle=none;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="ConsensusCheck" target="Negotiation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

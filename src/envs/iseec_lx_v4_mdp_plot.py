@@ -50,7 +50,8 @@ class IEMEnv(gym.Env):
         # self.action_space = spaces.MultiDiscrete([2, 2])
         # self.action_space = spaces.Discrete(4)
         # 设置一个 4维的 离散空间，每个维度有 2 个离散值
-        self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
+        # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
+        self.action_space = spaces.Discrete(16)
         
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
@@ -1465,106 +1466,211 @@ class IEMEnv(gym.Env):
             
         self.current_action = action.copy() if hasattr(action, 'copy') else action
 
-    def apply_action_copy(self, action):
+    def apply_action_iseec_multiple(self, action):
+        """主要是根据原文中设置的了几个 case 来进行设计
+        统一归类为一个维度
 
-        # TODO: 考虑 copan 里面 IPCC 报告里面的默认折半来进行设置考虑
-        # TODO: 原则里面的部分，每2年调整一次
-
-        # TODO：考虑根据 en-roads 来设置碳税里面价格的设置（每次变动的幅度为30%~10%，基于一个测试值来浮动）
-        # TODO: 考虑到实在的部分，税收是对半或者减少 1. 对半操作 2.直接变换操作
-        # TODO: 增加判断，如果幅度过大，就跳过该步骤
-
-        # # 基于时间判断是否执行管控
-        # if self.t < self.control_start_year:
-        #     # 在管控开始前，使用默认值
-        #     self.carbon_tax_rate = 0
-        #     self.subsidy_level_ace = 0
-        #     return
-
-        # if action[0] == 0:  # 正常税收
-        #     self.carbon_tax_rate = 0
-
-        # tax_baseline = 50  # 基础税收
-
-        # if action[0] == 1:
-        #     # 1.非常高的税收（Very Highly Taxed）
-        #     self.carbon_tax_rate = tax_baseline * 5
-
-        if action[1] == 0:
-            self.subsidy_level_E21_eta = 1 / 100
-
-        if action[1] == 1:
-            self.subsidy_level_E21_eta = 0.1 / 100
-
-    def apply_action_carbon_tax(self, action):
-        # 一维上设置
-
-        tax_baseline = 50  # 基础税收
-
-        if action[0] == 0:  # 正常税收
-            self.carbon_tax_rate = 0
-
-        if action[0] == 1:
-            # 1.非常高的税收（Very Highly Taxed）
-            self.carbon_tax_rate = tax_baseline * 5
-
-    def apply_action_subsidy_ace(self, action):
-
-        if action[0] == 0:
-            self.subsidy_level_ace = 0
-
-        if action[0] == 1:
-            self.subsidy_level_ace = 250
-
-    def apply_action_turn_ace(self, action):
-        """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
-        主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-
-        gym example:
-        self.action_space = spaces.MultiDiscrete([2, 2, 2])
-
-        # TODO： 考虑两种做法：1. 直接调整参数 2. 是否开启这部分操作
+        Args:
+            action (_type_): _description_
         """
-
-        # 2. 是否开启这部分
-
-        pass
-
-    def apply_action_sub_renewable(self, action):
-        """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
-        主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-
-        gym example:
-        self.action_space = spaces.MultiDiscrete([2, 2, 2])
-        """
-
-        # {波动范围：0.1/100 ~ 2/100},TODO: 后面考虑映射负面结果
-        if action[0] == 0:
-            self.subsidy_level_E21_eta = 1 / 100
-
-        if action[0] == 1:
-            self.subsidy_level_E21_eta = 0.1 / 100
-
-        # TODO eta_22
-
-    def apply_action_ays(self, action):
-        """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
-        主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-
-        gym example:
-        self.action_space = spaces.MultiDiscrete([2, 2, 2])
-        """
-
-        pass
-
-    def apply_action_copan(self, action):
-        """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
-        主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-        gym example:
-        self.action_space = spaces.MultiDiscrete([2, 2, 2])
-        """
-
-        pass
+    
+        if np.array_equal(action, np.array([0, 0, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100 
+        elif np.array_equal(action, np.array([1, 0, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100 
+        elif np.array_equal(action, np.array([0, 1, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+        elif np.array_equal(action, np.array([1, 1, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 1 / 100
+        elif np.array_equal(action, np.array([0, 0, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+            
+        elif np.array_equal(action, np.array([1, 0, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+        elif np.array_equal(action, np.array([0, 1, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+            
+        elif np.array_equal(action, np.array([1, 1, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+        elif np.array_equal(action, np.array([0, 0, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([1, 0, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([0, 1, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([1, 1, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([0, 0, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([1, 0, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([0, 1, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 6.03
+            self.dE22_dt_drl = 6.08
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        elif np.array_equal(action, np.array([1, 1, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0.6
+            self.taoDF21_drl = 0.6
+            self.taoDV22_temp_drl = 0.6
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 2 / 100
+            self.eta0_22_drl = 2 / 100   
+        else:
+            raise ValueError("没有对应的 action")
+            
+        self.current_action = action.copy() if hasattr(action, 'copy') else action
 
     def reset(self, seed=None, options=None): # 可以单独进行设置
 
@@ -1576,6 +1682,7 @@ class IEMEnv(gym.Env):
         ######## env 本身 的部分 ########
         # 1.储存数组部分与上一个 episode 区分开
         # 初始化状态变量
+        # 经过基本运行后参数预热后已经长度对应了
         self.k21, self.k22, self.taoR21, self.taoP21, self.taoDV21, self.taoDF21 = (
             [],
             [],
@@ -1659,7 +1766,7 @@ class IEMEnv(gym.Env):
 
         ############ 预热的部分 #############
         SpingUp_time = np.arange(
-            self.model_init_year, self.control_start_year + 1, self.dt
+            self.model_init_year, self.control_start_year, self.dt # 可以计算，
         )
 
         ode_solutions = odeint(
@@ -1669,63 +1776,28 @@ class IEMEnv(gym.Env):
             mxstep=300,
         )
         #####################################
-
-        self.state = np.array(ode_solutions[-1], dtype=np.float64)
+        # 对应的是 2016 年的初始数据，2016	1.064859411	859.6220675	132.4912636	1256.997825	0.471187383	15.83579504	2.436276166	13.39951888	47.50738509	50.312
+        self.state = np.array(ode_solutions[-1], dtype=np.float64) 
         
-        # 新增随机扰动的初始状态: 方案 3 年，均匀分布
-        self.state[0] = self.state[0] + np.random.uniform(low=-0.104, high=+0.104)
-        self.state[1] = self.state[1] + np.random.uniform(low=-12.750, high=12.750)
-        self.state[2] = self.state[2] + np.random.uniform(low=-1.801, high=1.801)
-        self.state[3] = self.state[3] + np.random.uniform(low=-14.930, high=14.930)
-        self.state[4] = self.state[4] + np.random.uniform(low=-0.038, high=0.038)
-        self.state[5] = self.state[5] + np.random.uniform(low=-18.227, high=18.227)
-        self.state[6] = self.state[6] + np.random.uniform(low=-18.599, high=18.599)
-        self.state[7] = self.state[7] # 这几个量波动性不大
-        self.state[8] = self.state[8] 
-        self.state[9] = self.state[9]
-        
-        # # 方案2：正态分布的随机过程部分
-        # # 定义扰动幅度，
-        # noise_scales = {
-        #     'T_a': 0.1,      # 温度扰动 ±0.1K
-        #     'C_a': 0.05,     # 大气碳浓度扰动 ±5%
-        #     'C_o': 0.05,     # 海洋碳浓度扰动 ±5%
-        #     'C_od': 0.05,    # 深层海洋碳浓度扰动 ±5%
-        #     'T_o': 0.1,      # 海洋温度扰动 ±0.1K
-        #     'E21': 0.1,      # 太阳能和风能扰动 ±10%
-        #     'E22': 0.1,      # 新型可再生能源扰动 ±10%
-        #     'E23': 0.1,      # 核能扰动 ±10%
-        #     'E24': 0.1,      # 传统可再生能源扰动 ±10%
-        #     'E12': 0.1       # 生物质能扰动 ±10%
-        # }
-    
-        # # 生成随机扰动
-        # noise = np.random.normal(0, 1, 10)  # 10维标准正态分布
-        
-        # # 应用扰动到初始状态
-        # self.state = np.array([
-        #     0 + noise[0] * noise_scales['T_a'],
-        #     self.cina * (1 + noise[1] * noise_scales['C_a']),
-        #     self.cino * (1 + noise[2] * noise_scales['C_o']),
-        #     self.cinod * (1 + noise[3] * noise_scales['C_od']),
-        #     0 + noise[4] * noise_scales['T_o'],
-        #     0 + noise[5] * noise_scales['E21'],
-        #     0 + noise[6] * noise_scales['E22'],
-        #     0 + noise[7] * noise_scales['E23'],
-        #     0 + noise[8] * noise_scales['E24'],
-        #     self.energy_MYbaseline18502100_biomass[0] * (1 + noise[9] * noise_scales['E12'])
-        # ], dtype=np.float64)
-        
-        # # 确保扰动后的值在物理意义上合理
-        # self.state = np.clip(self.state, 0, None)  # 确保非负
-        
-        self.t = self.control_start_year
+        # # 新增随机扰动的初始状态: 方案 3 年，均匀分布
+        # self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 5, high=+0.104 * 5)
+        # self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 5, high=12.750 * 5)
+        # self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 5, high=1.801 * 5)
+        # self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 5, high=14.930 * 5)
+        # self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 5, high=0.038 * 5)
+        # self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 5, high=18.227 * 5)
+        # self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 5, high=18.599 * 5)
+        # self.state[7] = self.state[7] # 这几个量波动性不大
+        # self.state[8] = self.state[8] 
+        # self.state[9] = self.state[9]
+         
+        self.t = self.control_start_year - 1 # 2016，管控时间还没有开始，2016 + action_2017 年 结果才是 2017 年 结果
 
         self.done = False
         
-        if self.render_mode_diy == "human":
+        if self.render_mode_diy == "human" and self.t == self.control_start_year - 1:
             self.render()
-            
+          
         self.prev_action = None
 
         # 记录部分
@@ -1761,8 +1833,8 @@ class IEMEnv(gym.Env):
         self.state_history["E12"].append(self.state[9])
         
         # 这里比较特殊，因为 reset 时候 Action 是随机的，所以这里先设置一个默认的
-        self.state_history["action"].append(0)
-        self.state_history["reward"].append(0)
+        self.state_history["action"].append(None)
+        self.state_history["reward"].append(None)
 
         # 根据新版 gym 的要求，reset 方法需要返回 observation 和 info
         return self.state, {}
@@ -1812,7 +1884,6 @@ class IEMEnv(gym.Env):
         # 计算奖励
         reward = self.reward_function()
         
-
         # Record state history - add this section
         action_number_env, action_name_env = self.action2number_env(action)
         self.state_history["time"].append(self.t)

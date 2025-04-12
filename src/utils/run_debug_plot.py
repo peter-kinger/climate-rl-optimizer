@@ -905,7 +905,7 @@ if __name__ == "__main__":
 
     # 利用 gym 函数检查环境
     env = IEMEnv(reward_type=custom_reward_type)
-    check_env(env) # 这里也许会导致多次 reset 调用
+    # check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果
     all_episode_rewards = []
@@ -944,6 +944,9 @@ if __name__ == "__main__":
             total_state.append(obs)
             total_reward.append(reward)
             total_done.append(done)
+            
+            if i % 10 == 0:
+                env.render()
             
             episode_reward += reward
             ##################################
