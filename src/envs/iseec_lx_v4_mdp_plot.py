@@ -68,6 +68,8 @@ class IEMEnv(gym.Env):
         self.control_start_year = control_start_year  # TODO
         
         self.render_mode_diy = render_mode_diy
+        
+        self.reward = 0
 
         # run information in a dictionary
         self.data = {
@@ -590,22 +592,22 @@ class IEMEnv(gym.Env):
             ############################### 税收增加的部分 ##############################
             # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
             # 添加碳税政策的影响
-            # self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
-            # self.price_elasticity = (
-            #     - 1 # -0.3->-1
-            # )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
-            # self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
-            #
-            # # 碳税收入（动态累积）
+            self.carbon_tax_rate = 0 # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
+            self.price_elasticity = (
+                - 1 # -0.3->-1
+            )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
+            self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
+            
+            # 碳税收入（动态累积）
             # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
-            #
-            # # 碳税对化石燃料的需求抑制
-            # E11_reduction_due_to_tax = (
-            #     self.price_elasticity
-            #     * self.carbon_tax_rate
-            #     * self.conversion_CO2_to_energy
-            # )
-            #
+            
+            # 碳税对化石燃料的需求抑制
+            E11_reduction_due_to_tax = (
+                self.price_elasticity
+                * self.carbon_tax_rate
+                * self.conversion_CO2_to_energy
+            )
+            
             ###########################################################################
 
             E11 = (
@@ -1023,6 +1025,23 @@ class IEMEnv(gym.Env):
             print("Outside PB!")
 
         return over_done
+    
+    def done_state_inside_2_temperature_planetary_boundaries(self):
+        """Check to see if we are in a terminal state"""
+        # # 还需要再执行一个时间步长才能判断是否到达边界
+        # self.apply_action(action)
+        # TODO, 可以增加复杂的条件
+
+        # L,A,G,T,P,K,S = self.state
+        T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+        over_done = False
+
+        if T_a > 2.5:
+            over_done = True
+            print("Outside PB!")
+
+        return over_done
 
     def good_sustainable_state(self):
         """Check to see if we are in a terminal state"""
@@ -1041,54 +1060,36 @@ class IEMEnv(gym.Env):
         # 可以替换多种奖励类型
 
         # 距离计算版本
-        def reward_PB_temperature():
+        def reward_pb_temperature():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             if self.done_state_inside_planetary_boundaries():
-                reward = 0
+                reward = -10
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             return reward
         
-                # 距离计算版本
-        def reward_PB_temperature_good():
+
+        def reward_pb_temperature_good():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             if self.done_state_inside_planetary_boundaries():
-                reward = 0
-            else:
-                reward = - np.linalg.norm(T_a - self.T_a_PB)
-                reward = reward * 10  # TODO: 10, 100, 1000, 10000
-                
-            if self.t >= 2080: # 这个给的波动阶段，太大了，而且应该是添加，而不是
-                if T_a < self.T_a_PB:
-                    reward = 100
-                else:
-                    reward = -100
-                
-            return reward
-    
-        def reward_PB_temperature_add():
-        
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            if self.done_state_inside_planetary_boundaries():
-                reward = 0
+                reward = -10
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             if self.t >= 2090: # 这个给的波动阶段，太大了，而且应该是添加，而不是
                 if T_a < self.T_a_PB:
-                    reward = reward + 10
+                    reward +=  100
                 else:
-                    reward = reward - 10
+                    reward -= 100
                 
             return reward
         
-        def reward_PB_temperature_simple_gpt():
+        def reward_pb_temperature_simple_gpt():
             """极简奖励函数：结合终年控温目标和动作探索"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             current_year = self.t  # 当前年份
@@ -1131,20 +1132,19 @@ class IEMEnv(gym.Env):
             # 判断是否超过临界状态
             if T > self.T_critical:
                 # 超过临界状态的 reward 计算
-                reward = - 100 * (T - self.T_target) 
+                reward = - 30 * (T - self.T_target) 
             else:
                 # 未超过临界状态的 reward 计算
                 reward = - 10 * (T - self.T_target) 
 
             return reward
 
-
         # 机理设计类型
         ################# ays copan 基本类型 reward 考虑 ##################
 
         def reward_desirable_region_renewable():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+            reward = 0
             E11 = (
                 self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
                 - E12
@@ -1165,162 +1165,180 @@ class IEMEnv(gym.Env):
 
             return reward
 
-        def simple_spare():
+        def reward_simple_spare():
+            reward = 0
+            reward = -1 # 每次步进进行惩罚
             if self.good_sustainable_state():
-                reward = 1 # 因为还没有到达最终目的，只是小奖励
+                reward += 5 # 因为还没有到达最终目的，只是小奖励
                 
             elif self.done_state_inside_planetary_boundaries():
-                reward = -1
-                
-            else:
-                reward = 0
-                
-                
+                reward -= 10
             return reward
 
-        ################# gpt 设计的奖励函数 ##################
         def reward_time_phased_temperature():
-            """基于时间阶段的温度控制奖励函数
-
-            将模拟时间(1850-2100)分为三个阶段:
-            1. 历史阶段(1850-2016): 不关注温度变化，仅提供基础奖励
-            2. 过渡阶段(2016-2030): 开始逐步关注温度变化和减排
-            3. 关键阶段(2030-2100): 高度关注温度控制，强化降温奖励
+            """基于2017-2100年的温度控制奖励函数
+            
+            目标：
+            1. 易于收敛：使用平滑的奖励信号
+            2. 2058-2100年控制在1.5℃以下
+            3. 2090年前温度平稳变化
             """
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            # 计算当前所处时间阶段
+            T_a = self.state[0]  # 当前温度
             current_year = self.t
-
-            # 1. 基础奖励计算(基于温度与目标的距离)
-            temp_gap = abs(T_a - self.T_target)
-            base_reward = -temp_gap  # 越接近目标，基础奖励越高
-
-            # 2. 基于时间阶段的奖励权重
-            if current_year < 2016:
-                # 历史阶段: 不关注温度变化
-                phase_weight = 0.01  # 几乎不考虑温度控制
-
-            elif current_year < 2030:
-                # 过渡阶段: 开始逐步关注温度
-                # 使用线性插值从0.2到0.6
-                progress = (current_year - 2016) / (2030 - 2016)
-                phase_weight = 0.2 + progress * 0.4
-
-            else:
-                # 关键阶段: 高度关注温度控制
-                phase_weight = 1.0
-
-            # 3. 温度变化趋势奖励(只在2016年后考虑)
-            trend_reward = 0
-            if current_year >= 2016 and hasattr(self, "previous_T_a"):
-                temp_change = self.previous_T_a - T_a  # 温度下降为正
-
-                # 放大温度变化信号
-                if temp_change > 0:  # 温度下降
-                    trend_reward = 5.0 * temp_change
-                else:  # 温度上升或不变
-                    trend_reward = 2.0 * temp_change  # 负奖励
-
-            # 4. 行星边界紧急制动奖励(任何时间段都适用)
-            emergency_penalty = 0
-            if T_a > self.T_a_PB:
-                # 接近行星边界时的急剧惩罚
-                emergency_penalty = -10.0 * (T_a - self.T_a_PB)
-
-            # 5. 温度上升速率奖励(2016年后)
-            rate_reward = 0
-            if current_year >= 2016 and len(self.state_history["T_a"]) > 5:
-                recent_temps = self.state_history["T_a"][-5:]
-                temp_rate = (recent_temps[-1] - recent_temps[0]) / 5
-
-                # 温度上升越慢越好
-                if temp_rate <= 0:  # 温度稳定或下降
-                    rate_reward = 2.0
-                else:  # 温度上升
-                    rate_reward = -3.0 * temp_rate
-
-            # 更新历史状态
+            reward = 0
+            
+            # 1. 基础温度控制奖励（使用平滑的二次函数）
+            temp_gap = T_a - self.T_a_PB
+            shaping = -50 * (temp_gap ** 2)  # 使用较小的系数避免奖励过大
+            
+            # 计算奖励差分
+            if hasattr(self, 'prev_shaping'):
+                reward = shaping - self.prev_shaping
+            self.prev_shaping = shaping
+            
+            # 2. 基于时期的额外奖励
+            if current_year >= 2058:
+                # 2058年后更严格的温度控制
+                if T_a <= 1.5:
+                    reward += 20  # 达到目标给予显著正奖励
+                else:
+                    reward -= 30 * (T_a - 1.5)  # 超过1.5度给予更大惩罚
+            
+            # 3. 温度变化速率控制（2090年前）
+            if current_year < 2090 and hasattr(self, 'previous_T_a'):
+                temp_change = abs(T_a - self.previous_T_a)
+                if temp_change < 0.05:  # 温度变化平缓
+                    reward += 10
+                elif temp_change > 0.1:  # 温度变化剧烈
+                    reward -= 20 * temp_change
             self.previous_T_a = T_a
-
-            # 组合奖励
-            total_reward = (
-                phase_weight * base_reward  # 基础温度差距
-                + phase_weight * trend_reward  # 温度变化趋势
-                + emergency_penalty  # 紧急边界惩罚
-                + phase_weight * rate_reward  # 温度变化率
-            )
-
-            return total_reward
-
-        def DifferentialReward():
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            current_deviation = np.linalg.norm(T_a - self.T_a_PB)
-            reward = -current_deviation + 5 * (self.prev_deviation - current_deviation)
+            
+            # 4. 最终阶段奖励（2090-2100）
+            if current_year >= 2090:
+                if 1.45 <= T_a <= 1.55:  # 在1.5度附近波动
+                    reward += 30
+                elif T_a > 1.55:  # 温度过高给予惩罚
+                    reward -= 50
+            
+            # 5. 紧急情况处理
+            if T_a > 2.0:  # 温度远超目标
+                reward -= 100
+                
+            # 6. 最终状态额外奖励
+            if current_year >= 2099:
+                if T_a <= 1.5:
+                    reward += 200  # 成功完成任务
+                else:
+                    reward -= 200  # 任务失败
+                    
             return reward
-
-        def SparseReward():
+        
+        def reward_sparse():
             """稀疏奖励函数，只有在达到目标时才给予奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            if np.linalg.norm(T_a - self.T_a_PB) < 0.1: # 0.5 和 0.1 效果都很差
+            reward = 0
+            if np.linalg.norm(T_a - self.T_a_PB) < 0.2: # 0.5 和 0.1 效果都很差
                 reward = 1
             else:
-                reward = -1
-
-            return reward
-
-        def PiecewiseRewardFunction():
-
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            if self.t <= 2050:
-                reward = - np.abs(T_a - self.T_a_PB)
-            else:
-                reward = -10 * (T_a - self.T_a_PB) 
-
+                reward = - 0.1
+                
+            if self.t > 2099:
+                if T_a < self.T_a_PB: #
+                    reward = reward + 10
+                    
             return reward
     
         ############### 巴黎协定奖励函数 ###############
         # 下面是批量试验的过程
-        def paris_agreement_reward():
+        def reward_paris_agreement():
             """巴黎协定奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB) # ** 2
+            
+            if self.done_state_inside_planetary_boundaries():
+                reward = - 5 # 不仅是要原理，还要惩罚
+            else:
+                reward = - 10 * (self.T_a_PB - T_a ) 
+            
+            if self.t > 2099:
+                if T_a < self.T_a_PB: #
+                    reward = reward + 10
+            
             return reward
     
-        def paris_agreement_reward_2():
+        def reward_paris_agreement_close():
             """巴黎协定奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  ** 2
-            return reward
-        
-        def paris_agreement_reward_3():
-            """加入稀疏奖励考虑"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
+            reward = 0
             
-            current_year = self.t
-            if current_year > 2095:
-                if T_a > self.T_a_PB:  
-                    reward = reward - 10
+            if self.done_state_inside_planetary_boundaries():
+                reward = - 5 # 不仅是要原理，还要惩罚
+            else:
+                reward = - 10 * (self.T_a_PB - T_a ) 
+            
+            # 如果 2075 年时候，温度已经低于 1.5，则给予奖励
+            if self.t >= 2075:
+                if T_a <= 1.5:
+                    reward += 50
                 else:
-                    reward = reward - 10
-            return reward
-        
-        def paris_agreement_reward_multiple():
-            """基于巴黎协定奖励函数，进行多阶段设置"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+                    reward -= 50
             
-            reward = - 10 * np.linalg.norm(C_a - self.C_a_PB) 
-      
+            if self.t > 2099:
+                if T_a <= 1.5:
+                    reward += 100  # 成功完成任务
+                else:
+                    reward -= 100  # 任务失败
             return reward
         
-        def paris_agreement_reward_positive_negative():
+        def reward_paris_agreement_result_new():
+            """巴黎协定奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0  # 初始化奖励
+            
+            # 主要的引导奖励部分
+            reward = - 10 * (self.T_a_PB - T_a ) 
+            
+            if self.done_state_inside_planetary_boundaries():
+                reward -= 5 # 不仅是要原理，还要惩罚
+                
+            if self.t >= 2097:
+                if T_a < self.T_a_PB: #
+                    reward += 10 # 应该是累加计算
+            return reward
+        
+        def reward_paris_agreement_result_lunar():
+            """简化的巴黎协定奖励函数 - 专注于温度控制"""
+            T_a = self.state[0]  # 只关注温度
+            
+            # 1. 计算 shaping 奖励 - 只关注温度差异
+            shaping = -100 * (T_a - self.T_a_PB)**2  # 温度偏差的二次惩罚
+            
+            # 2. 计算奖励差分
+            reward = 0
+            if hasattr(self, 'prev_shaping'):
+                reward = shaping - self.prev_shaping
+            self.prev_shaping = shaping
+            
+            # 3. 边界惩罚
+            if self.done_state_inside_planetary_boundaries():  # 超过温度边界
+                reward -= 10
+            
+            # 4. 最终状态奖励
+            if self.t >= 2099:
+                if T_a < self.T_a_PB:
+                    reward += 50  # 成功控制温度
+                else:
+                    reward -= 50  # 失败惩罚
+            
+            return reward
+
+        def reward_paris_agreement_positive_negative():
             """加入稀疏奖励考虑"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
             
             current_year = self.t
+            
             if current_year > 2095:
                 if T_a > self.T_a_PB:  
                     reward = reward + 10
@@ -1328,7 +1346,7 @@ class IEMEnv(gym.Env):
                     reward = reward - 10
             return reward
     
-        def paris_agreement_reward_time():
+        def reward_paris_agreement_time():
             """基于时间阶段的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             
@@ -1357,34 +1375,254 @@ class IEMEnv(gym.Env):
                     reward = reward - 1
 
             return reward
+    
+    
+        ########### 设置 2 ° 下的奖励函数 ###########
+        def reward_2_pb_temperature():
+            """2 个 pb 的奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0
+            
+            if self.done_state_inside_2_temperature_planetary_boundaries():
+                reward = - 10
+            else:
+                reward = - np.linalg.norm(T_a - 2)
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
+                
+            return reward
+        
+        def reward_2_good_temperature():
+            """2 个 pb 的奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0
+            
+            if self.done_state_inside_2_temperature_planetary_boundaries():
+                reward = - 10
+            else:
+                reward = - np.linalg.norm(T_a - 2)
+                reward = reward * 10  # TODO: 10, 100, 1000, 10000
+                
+            if self.t >= 2099:
+                if T_a < 2:
+                    reward = reward + 100 # 成功完成任务，失败了也不是很严重
+            return reward
+        
+        def reward_2_desirable_region_renewable():
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0
+            E11 = (
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
+            )  # 可再生能源1
+
+            desirable_share_renewable = 0.35
+
+            if (E21 + E22 + E23 + E24) / (
+                E21 + E22 + E23 + E24 + E12 + E11
+            ) >= desirable_share_renewable:
+                reward = 1.0
+            else:
+                reward = 0.0
+
+            return reward
+        
+        def reward_simple_2_spare():
+            """2 个 pb 的奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0
+            
+            reward = -0.1
+            
+            if self.done_state_inside_2_temperature_planetary_boundaries():
+                reward = reward - 10
+            else:
+                reward = reward + 1
+            
+            if self.t >= 2099:
+                if T_a < 2:
+                    reward = reward + 100 # 成功完成任务，失败了也不是很严重
+                    
+            return reward  
+        
+        def reward_simplist_most_2_spare():
+            """2 个 pb 的奖励函数"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            reward = 0
+            # reward -= 1
+            
+            # 分时间段来设置达到目标的离散奖励，2030 年之前，2030-2050 年，2050 年之后，奖励不同
+            if self.t < 2070:
+                if T_a < 2:
+                    reward = reward + 30
+            elif self.t >= 2070 and self.t <= 2090:
+                if T_a < 2:
+                    reward = reward + 20
+            else:
+                if T_a < 2:
+                    reward = reward + 10
+            return reward      
+        
+        # 2025-04-22 的新思考 reward 函数
+        def reward_paris_agreement_carracing_lunar():
+            
+            T_a = self.state[0]  # 只关注温度
+            
+            self.reward -= 0.1 # 越来越罚
+            
+            # 1. 计算 shaping 奖励 - 只关注温度差异 TODO: 可以向高维进行拓展
+            shaping = -100 * (T_a - self.T_a_PB)  # 温度偏差的二次惩罚，温度偏差惩罚
+            
+            # 2. 计算奖励差分
+
+            if hasattr(self, 'prev_shaping'):
+                step_reward = shaping - self.prev_shaping
+            else:
+                step_reward = 0
+                 
+            self.prev_shaping = shaping
+            
+            reward = step_reward + self.reward
+            
+            # 3. 边界惩罚
+            if self.done_state_inside_planetary_boundaries():  # 超过温度边界
+                reward -= 10
+            
+            # 4. 最终状态奖励
+            if self.t >= 2099:
+                if T_a < self.T_a_PB:
+                    reward = 50  # 成功控制温度
+                else:
+                    reward = -50  # 失败惩罚
+            return reward
+        
+        def reward_normal_paris_agreement_multi_objective_simulate():
+            """考虑通过多维范数来计算奖励
+            2. 距离度量（距离惩罚或接近奖励）
+            - 考虑通过仿真收集来完成目标（仿真单独放在外部程序）
+            """
+            state = self.state
+            s_target = np.array([1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312])
+            s_min = np.array([1.12, 868.98, 133.735, 1266, 0.49, 0, 0, 0, 47.50739, 50.312]) # 注意：最大值和最小值不能相同，否则归一化出错
+            s_max = np.array([3.83, 1319.727, 199.563, 1861.15, 2.44, 883.97, 366.92, 13.39, 47.50739, 50.312])
+            weights = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) # 默认全都是一样
+            
+            clipped = np.minimum(np.maximum(state, s_min), s_max)
+            epsilon = 1e-10 # 防止分母为0,这里是一个小 trick
+            
+            normed  = (clipped - s_min) / (s_max - s_min + epsilon)
+            target_normed = (s_target - s_min) / (s_max - s_min + epsilon)
+            
+            # 2) 加权差值
+            diff = normed - target_normed
+            weighted_diff = weights * diff
+            
+            # 3) L2 距离并取负号
+            dist = - np.linalg.norm(weighted_diff) # TODO: 实验：正负的选择
+            return dist
+        
+        def reward_normal_paris_agreement_multi_objective_oneline_all():
+            """考虑通过多维范数来计算奖励
+            2. 距离度量（距离惩罚或接近奖励）
+            
+            通过在线收集的方法来利用 z-score 计算，这里可以灵活切换里面的权重和计算的范式完成不同的目标
+            在线数据的数据主要来自于： reset 和 step 中收集
+            """
+            # 1) 对每个维度计算均值和标准差
+            mu    = self.obs_history.mean(axis=0)         # shape: (10,)
+            sigma = self.obs_history.std(axis=0, ddof=0)  # shape: (10,)
+            
+            # 避免除以零
+            sigma = np.where(sigma > 0, sigma, 1.0)
+            
+            # 2) 对一个新的 10 维状态做 Z-score 标准化
+            new_state = self.state
+            state_zscore = (new_state - mu) / sigma
+            
+            # 3) 计算归一化后的结果和归一化目标的差值
+            s_target = np.array([1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312])
+            target_zscore = (s_target - mu) / sigma
+            diff = state_zscore - target_zscore
+            
+            # 4) 设置各维度的权重
+            # TODO:可以根据不同指标的重要性设置不同的权重
+            weights = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])  # 默认权重为1
+            # 例如，如果温度指标更重要，可以设置：
+            # weights = np.array([2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            
+            # 5) 计算加权后的差异
+            weighted_diff = diff * weights
+            
+            # 6) 计算奖励
+            reward = - np.linalg.norm(weighted_diff)  # TODO:这里可以进行范数更改计算
+            
+            return reward
+            
+        def reward_multi_objective_paris_agreement_close():
+            """通过多维权重来计算奖励
+            1. 线性加权（加权和标量化）
+
+            input: S 更新好后的最大值最小值,现有的（考虑在 step 中进行收集）
+            """      
+            pass
+        def reward_multi_objective_paris_agreement_multi_objective_low_variable():
+            """考虑使用少数变量
+            """
+            pass
 
         # 通过选项返回函数，
-        if reward_type == "PB_temperature":
-            return reward_PB_temperature
-        elif reward_type == "PB_ste":
-            return reward_PB_ste
+        if reward_type == "pb_temperature":
+            return reward_pb_temperature
+        elif reward_type == "pb_temperature_good":
+            return reward_pb_temperature_good
+        elif reward_type == "pb_temperature_simple_gpt":
+            return reward_pb_temperature_simple_gpt
         elif reward_type == "critical_ste_temperature":
             return reward_critical_ste_temperature
         elif reward_type == "desirable_region_renewable":
             return reward_desirable_region_renewable
         elif reward_type == "simple_spare":
-            return simple_spare
+            return reward_simple_spare
         elif reward_type == "time_phased_temperature":
             return reward_time_phased_temperature
-        elif reward_type == "QuadraticReward":
-            return QuadraticReward
-        elif reward_type == "DifferentialReward":
-            return DifferentialReward
-        elif reward_type == "SparseReward":
-            return SparseReward
-        elif reward_type == "PiecewiseRewardFunction":
-            return PiecewiseRewardFunction
-        elif reward_type == "PB_temperature_good":
-            return reward_PB_temperature_good
-        elif reward_type == "PB_temperature_add":
-            return reward_PB_temperature_add
-        elif reward_type == "PB_temperature_simple_gpt":
-            return reward_PB_temperature_simple_gpt
+        elif reward_type == "sparse":
+            return reward_sparse
+        elif reward_type == "paris_agreement":
+            return reward_paris_agreement
+        elif reward_type == "paris_agreement_close":
+            return reward_paris_agreement_close
+        elif reward_type == "paris_agreement_result_new":
+            return reward_paris_agreement_result_new
+        elif reward_type == "paris_agreement_result_lunar":
+            return reward_paris_agreement_result_lunar
+        elif reward_type == "paris_agreement_positive_negative":
+            return reward_paris_agreement_positive_negative
+        elif reward_type == "paris_agreement_time":
+            return reward_paris_agreement_time
+        # 单独区别稀疏奖励
+        # 2 ° 情景下的实验
+        elif reward_type == "2_pb_temperature":
+            return reward_2_pb_temperature
+        elif reward_type == "2_good_temperature":
+            return reward_2_good_temperature
+        elif reward_type == "2_desirable_region_renewable":
+            return reward_2_desirable_region_renewable
+        elif reward_type == "2_simple_spare":
+            return reward_simple_2_spare
+        elif reward_type == "2_simplist_most_spare":
+            return reward_simplist_most_2_spare
+        
+        elif reward_type == "paris_agreement_carracing_lunar":
+            return reward_paris_agreement_carracing_lunar
+        
+        elif reward_type == "normal_paris_agreement_multi_objective_simulate":
+            return reward_normal_paris_agreement_multi_objective_simulate
+        elif reward_type == "normal_paris_agreement_multi_objective_oneline_all":
+            return reward_normal_paris_agreement_multi_objective_oneline_all
+        
         else:
             raise ValueError("没有对应的奖励函数")
 
@@ -1474,7 +1712,8 @@ class IEMEnv(gym.Env):
             action (_type_): _description_
         """
     
-        if np.array_equal(action, np.array([0, 0, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        # if np.array_equal(action, np.array([0, 0, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        if action == 0:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1486,7 +1725,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100 
-        elif np.array_equal(action, np.array([1, 0, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([1, 0, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        elif action == 1:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1498,7 +1738,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100 
-        elif np.array_equal(action, np.array([0, 1, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([0, 1, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        elif action == 2:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1510,7 +1751,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
-        elif np.array_equal(action, np.array([1, 1, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([1, 1, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        elif action == 3:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1521,22 +1763,10 @@ class IEMEnv(gym.Env):
             self.taoACE_drl = 0
             
             self.eta0_21_drl = 1 / 100
-        elif np.array_equal(action, np.array([0, 0, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([0, 0, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        elif action == 4:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-            
-            self.taoACE_drl = 0
-            
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-            
-        elif np.array_equal(action, np.array([1, 0, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
             
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
@@ -1546,7 +1776,21 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
-        elif np.array_equal(action, np.array([0, 1, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([1, 0, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        elif action == 5:
+            self.dE21_dt_drl = 0
+            self.dE22_dt_drl = 0
+            
+            self.taoR21_drl = 0
+            self.taoDF21_drl = 0
+            self.taoDV22_temp_drl = 0
+            
+            self.taoACE_drl = 0.6
+            
+            self.eta0_21_drl = 1 / 100
+            self.eta0_22_drl = 1 / 100
+        # elif np.array_equal(action, np.array([0, 1, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        elif action == 6:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1559,7 +1803,8 @@ class IEMEnv(gym.Env):
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
             
-        elif np.array_equal(action, np.array([1, 1, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action, np.array([1, 1, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        elif action == 7:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1571,7 +1816,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
-        elif np.array_equal(action, np.array([0, 0, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([0, 0, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        elif action == 8:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1583,7 +1829,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([1, 0, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([1, 0, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        elif action == 9:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1595,7 +1842,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([0, 1, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([0, 1, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        elif action == 10:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1607,7 +1855,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([1, 1, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([1, 1, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        elif action == 11:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1619,7 +1868,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([0, 0, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([0, 0, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif action == 12:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1631,7 +1881,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([1, 0, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([1, 0, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif action == 13:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1643,7 +1894,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([0, 1, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([0, 1, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif action == 14:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
             
@@ -1655,7 +1907,8 @@ class IEMEnv(gym.Env):
             
             self.eta0_21_drl = 2 / 100
             self.eta0_22_drl = 2 / 100   
-        elif np.array_equal(action, np.array([1, 1, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action, np.array([1, 1, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        elif action == 15:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
             
@@ -1763,6 +2016,8 @@ class IEMEnv(gym.Env):
             ],
             dtype=np.float64,
         )
+        
+        self.reward = 0
 
         ############ 预热的部分 #############
         SpingUp_time = np.arange(
@@ -1835,6 +2090,10 @@ class IEMEnv(gym.Env):
         # 这里比较特殊，因为 reset 时候 Action 是随机的，所以这里先设置一个默认的
         self.state_history["action"].append(None)
         self.state_history["reward"].append(None)
+        
+        # 开始自定义为了 z-score 的计算添加的高维部分
+        self.obs_history = []
+        self.obs_history.append(self.state.copy())
 
         # 根据新版 gym 的要求，reset 方法需要返回 observation 和 info
         return self.state, {}
@@ -1852,17 +2111,6 @@ class IEMEnv(gym.Env):
         - info: 额外信息，通常用于调试
         """
 
-        # 计算终止
-        # - 到达最大时间步长
-        # - 超出地球边界
-        if self.t >= self.model_end_year:
-            self.done = True
-            return self.state, 0, self.done, False, {}
-
-        if self.done_state_inside_planetary_boundaries():
-            self.done = True
-            return self.state, 0, self.done, False, {}
-
         # reward 单独计算方面
         self.prev_deviation = np.linalg.norm(self.state[0] - self.T_a_PB)
 
@@ -1872,8 +2120,8 @@ class IEMEnv(gym.Env):
         ######### action 和 演进的部分放在了一起 #####
         # self.apply_action(action) # 选择切换到底是哪个动作
         # self.apply_action_ste(action)
-        # self.apply_action_ste(action)
-        self.apply_action_iseec_case_one(action)
+        self.apply_action_iseec_multiple(action)
+        # self.apply_action_iseec_case_one(action)
 
         self.state = self.get_observation(next_t)  # 每次求解的 state 都是下一次
         ##########################################
@@ -1905,6 +2153,10 @@ class IEMEnv(gym.Env):
         self.data["step_idx"] += 1 # all episodes 记录的
         
         
+        # 为了 z-score 的计算，需要记录所有的 obs
+        self.obs_history.append(self.state.copy())
+        
+        
         if self.render_mode_diy == "human":
             if self.data["step_idx"] % 2100 == 0:
                 self.render()
@@ -1928,6 +2180,17 @@ class IEMEnv(gym.Env):
                 "E12": self.state[9],
             },
         }
+        
+        # 计算终止
+        # - 到达最大时间步长
+        # - 超出地球边界
+        self.done = False
+        if self.t >= self.model_end_year:
+            self.done = True
+
+        # if self.done_state_inside_planetary_boundaries():
+        if self.done_state_inside_2_temperature_planetary_boundaries():
+            self.done = True
 
         # TODO: 考虑是否需要归一化: trafo_state=self.normalize_state(self.state)
         return self.state, reward, self.done, truncated, info
@@ -1959,38 +2222,74 @@ class IEMEnv(gym.Env):
         # else:
         #     raise ValueError("没有对应的 action")
         
+        # # 根据目前的 apply_action_iseec_case_one 种类来赋值
+        # if np.array_equal(action_numpy, np.array([0, 0, 0, 0])):
+        #     return 0, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([1, 0, 0, 0])):
+        #     return 1, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([0, 1, 0, 0])):
+        #     return 2, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([1, 1, 0, 0])):
+        #     return 3, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([0, 0, 1, 0])):
+        #     return 4, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([1, 0, 1, 0])):
+        #     return 5, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([0, 1, 1, 0])):
+        #     return 6, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([1, 1, 1, 0])):
+        #     return 7, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+        # elif np.array_equal(action_numpy, np.array([0, 0, 0, 1])):
+        #     return 8, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([1, 0, 0, 1])):
+        #     return 9, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([0, 1, 0, 1])):
+        #     return 10, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([1, 1, 0, 1])):
+        #     return 11, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([0, 0, 1, 1])):
+        #     return 12, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([1, 0, 1, 1])):
+        #     return 13, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([0, 1, 1, 1])):
+        #     return 14, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # elif np.array_equal(action_numpy, np.array([1, 1, 1, 1])):
+        #     return 15, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+        # else:
+        #     raise ValueError("没有对应的 action")
+        
         # 根据目前的 apply_action_iseec_case_one 种类来赋值
-        if np.array_equal(action_numpy, np.array([0, 0, 0, 0])):
+        if action_numpy == 0:
             return 0, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([1, 0, 0, 0])):
+        elif action_numpy == 1:
             return 1, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([0, 1, 0, 0])):
+        elif action_numpy == 2:
             return 2, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([1, 1, 0, 0])):
+        elif action_numpy == 3:
             return 3, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([0, 0, 1, 0])):
+        elif action_numpy == 4:
             return 4, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([1, 0, 1, 0])):
+        elif action_numpy == 5:
             return 5, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([0, 1, 1, 0])):
+        elif action_numpy == 6:
             return 6, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([1, 1, 1, 0])):
+        elif action_numpy == 7:
             return 7, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
-        elif np.array_equal(action_numpy, np.array([0, 0, 0, 1])):
+        elif action_numpy == 8:
             return 8, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([1, 0, 0, 1])):
+        elif action_numpy == 9:
             return 9, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([0, 1, 0, 1])):
+        elif action_numpy == 10:
             return 10, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([1, 1, 0, 1])):
+        elif action_numpy == 11:
             return 11, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([0, 0, 1, 1])):
+        elif action_numpy == 12:
             return 12, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([1, 0, 1, 1])):
+        elif action_numpy == 13:
             return 13, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([0, 1, 1, 1])):
+        elif action_numpy == 14:
             return 14, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif np.array_equal(action_numpy, np.array([1, 1, 1, 1])):
+        elif action_numpy == 15:
             return 15, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         else:
             raise ValueError("没有对应的 action")

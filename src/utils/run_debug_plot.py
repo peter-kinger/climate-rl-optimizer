@@ -19,7 +19,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
-import sys
+import sys 
 import os
 
 # 获取当前文件的目录
@@ -166,7 +166,7 @@ def save_future_data(
     # 遍历所有步骤收集数据
     for step in range(len(total_action)):
         # 添加年份
-        data["year"].append(env.control_start_year + step + 1)
+        data["year"].append(env.control_start_year + step)
 
         # 添加状态值
         state = total_state[step]
@@ -894,14 +894,14 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "PB_temperature"
+    custom_reward_type = "normal_paris_agreement_multi_objective_oneline_all"
     rl_model_name = "fixed_action_0010"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
     
-    # SEED = 42 # 非必要不指定
+    # SEED = 42 # 非必要不指定      
 
     # 利用 gym 函数检查环境
     env = IEMEnv(reward_type=custom_reward_type)
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = np.array([0, 0, 1, 0])
+    fixed_action = 14
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
@@ -938,22 +938,22 @@ if __name__ == "__main__":
             
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
+            # if i % 10 == 0:
+            #     env.render()
+            
+            episode_reward += reward
+            ##################################
+            
+            if done:
+                print(f"Episode {episode} finished at step {i}")
+                break
+            
             ############ 添加转换的部分 #########
             action_number, action_name = IEMEnv.action2number_env(action)
             total_action.append(action_number)
             total_state.append(obs)
             total_reward.append(reward)
             total_done.append(done)
-            
-            if i % 10 == 0:
-                env.render()
-            
-            episode_reward += reward
-            ##################################
-
-            if done:
-                print(f"Episode {episode} finished at step {i}")
-                break
 
             # 打印每次运行结果
             print(i + env.model_init_year)
