@@ -99,6 +99,7 @@ class IEMEnv(gym.Env):
             "action_all_dim": [],
         }
         
+        
     def _set_seed(self, seed):
         """设置所有随机数生成器的种子"""
         # Python 内置 random
@@ -1020,7 +1021,11 @@ class IEMEnv(gym.Env):
 
         over_done = False
 
-        if C_a > self.C_a_PB_done or T_a > self.T_a_PB_done:
+        # if C_a > self.C_a_PB_done or T_a > self.T_a_PB_done:
+        #     over_done = True
+        #     print("Outside PB!")
+        
+        if T_a > 2.5:
             over_done = True
             print("Outside PB!")
 
@@ -1037,7 +1042,7 @@ class IEMEnv(gym.Env):
 
         over_done = False
 
-        if T_a > 2.5:
+        if T_a > 2:
             over_done = True
             print("Outside PB!")
 
@@ -1061,68 +1066,74 @@ class IEMEnv(gym.Env):
 
         # 距离计算版本
         def reward_pb_temperature():
+            """边界奖励，对于 pb 的情况实际上 norm 效果并不好，
+            考虑使用指数级别的考虑操作，
+
+            Returns:
+                _type_: _description_
+            """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             if self.done_state_inside_planetary_boundaries():
-                reward = -10
+                reward = -100
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             return reward
         
-
-        def reward_pb_temperature_good():
+        def reward_pb_temperature_init():
+            """
+            """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
-            if self.done_state_inside_planetary_boundaries():
-                reward = -10
+            reward = 0
+            # if self.done_state_inside_planetary_boundaries():
+            #     reward = -10
+            if T_a < 1.07:
+                reward = 0
+            elif T_a < 1.5:
+                reward = - (T_a - 1.5)
+            elif T_a < 1.76:
+                reward = - 10 * (T_a - 1.5)
             else:
-                reward = - np.linalg.norm(T_a - self.T_a_PB)
-                reward = reward * 10  # TODO: 10, 100, 1000, 10000
+                reward = - 100
+            
+            if self.t >= 2098:
+                if T_a < 1.5:
+                    reward = reward + 100
+
+            return reward
+               
+        # 距离计算版本
+        def reward_pb_temperature_growth():
+            """利用温度值来计算，但是加入了势能指数奖励
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            t = self.t
+            reward = 0
+            #—— 维护“全程达标”标志 ——#
+            if T_a > 1.8:
+                self.all_below = False
+
+            #—— 实时奖励 ——#
+            if T_a <= 1.5:
+                # 指数型微小惩罚
+                reward = - 0.1 * (math.exp(5 * (T_a - 1.5)) - 1.0)
+            else:
+                # 越界线性大惩罚
+                reward = - 10 * (T_a - 1.5)
+
+            #—— 81 步时的达标奖励 ——#
+            if t == self.bonus_steps and self.all_below:
+                reward += self.bonus_amount
                 
-            if self.t >= 2090: # 这个给的波动阶段，太大了，而且应该是添加，而不是
-                if T_a < self.T_a_PB:
-                    reward +=  100
+            if self.t >= 2098:
+                if T_a < 1.5:
+                    reward = reward + 100
                 else:
-                    reward -= 100
-                
+                    reward = reward - 10
             return reward
-        
-        def reward_pb_temperature_simple_gpt():
-            """极简奖励函数：结合终年控温目标和动作探索"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            current_year = self.t  # 当前年份
-            
-            # 1. 温度控制奖励
-            # 基础温度偏差惩罚
-            if self.done_state_inside_planetary_boundaries():
-                temp_reward = 0
-            else:
-                temp_reward = - np.linalg.norm(T_a - self.T_a_PB)
-                temp_reward = temp_reward * 10  # TODO: 10, 100, 1000, 10000
-            
-            # 如果接近终年，增加温度控制的权重
-            if current_year > 2080:
-                temp_reward *= 2  # 终年附近加倍温度控制重要性
-            
-            if self.t >= 2090:
-                if T_a < self.T_a_PB:
-                    temp_reward = temp_reward + 100
-            
-            # 2. 简单动作探索奖励
-            # 如果连续使用相同动作，给予小惩罚
-            if hasattr(self, 'prev_action') and np.array_equal(self.prev_action, self.current_action):
-                exploration_reward = -3
-            else:
-                exploration_reward = 0
-            
-            # 保存当前动作用于下次比较
-            self.prev_action = self.current_action.copy() if hasattr(self, 'current_action') else None
-            
-            # 总奖励
-            return temp_reward + exploration_reward
-
+           
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
 
@@ -1130,51 +1141,20 @@ class IEMEnv(gym.Env):
             T = self.state[0]  # 假设第一个维度表示温度
 
             # 判断是否超过临界状态
-            if T > self.T_critical:
+            if T > 1.76:
                 # 超过临界状态的 reward 计算
                 reward = - 30 * (T - self.T_target) 
             else:
                 # 未超过临界状态的 reward 计算
-                reward = - 10 * (T - self.T_target) 
-
-            return reward
-
-        # 机理设计类型
-        ################# ays copan 基本类型 reward 考虑 ##################
-
-        def reward_desirable_region_renewable():
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = 0
-            E11 = (
-                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-                - E12
-                - E21
-                - E22
-                - E23
-                - E24
-            )  # 可再生能源1
-
-            desirable_share_renewable = 0.4
-            reward = 0.0
-            if (E21 + E22 + E23 + E24) / (
-                E21 + E22 + E23 + E24 + E12 + E11
-            ) >= desirable_share_renewable:
-                reward = 1.0
-            else:
-                reward = 0.0
-
-            return reward
-
-        def reward_simple_spare():
-            reward = 0
-            reward = -1 # 每次步进进行惩罚
-            if self.good_sustainable_state():
-                reward += 5 # 因为还没有到达最终目的，只是小奖励
+                reward = - 10 * (T - self.T_target)
                 
-            elif self.done_state_inside_planetary_boundaries():
-                reward -= 10
+            # 检查最近10个动作是否相同
+            if all(action == self.state_history["action"][-1] for action in self.state_history["action"][-10:]): # all 是对可迭代元素进行检查
+                reward -= 5  # 如果最近10个动作都相同，给予额外惩罚
+                
             return reward
 
+      
         def reward_time_phased_temperature():
             """基于2017-2100年的温度控制奖励函数
             
@@ -1236,16 +1216,31 @@ class IEMEnv(gym.Env):
         def reward_sparse():
             """稀疏奖励函数，只有在达到目标时才给予奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-
+            # TODO 指数靠近的变化探究
+            
+            # reward = - 0.1
             reward = 0
-            if np.linalg.norm(T_a - self.T_a_PB) < 0.2: # 0.5 和 0.1 效果都很差
-                reward = 1
+            # if np.linalg.norm(T_a - self.T_a_PB) < 0.01: # 0.5 和 0.1 效果都很差
+            #     reward = 1
+            # else:
+            #     reward = 
+            
+            # 增加一个超过 1.5 以后的微小惩罚
+            if T_a > 1.76:
+                reward = - 10 * (T_a - 1.5)
             else:
-                reward = - 0.1
-                
-            if self.t > 2099:
-                if T_a < self.T_a_PB: #
-                    reward = reward + 10
+                if self.done_state_inside_planetary_boundaries():
+                    reward = reward - 50
+           
+            # if self.good_sustainable_state():
+            #     reward = reward + 0.1
+             
+            if self.t >= 2098:
+                if T_a  <= 1.5: #
+                    # reward = reward + 100
+                    reward = 50 - abs(T_a - 1.5)
+                else:
+                    reward = reward - 30
                     
             return reward
     
@@ -1254,128 +1249,137 @@ class IEMEnv(gym.Env):
         def reward_paris_agreement():
             """巴黎协定奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+            reward = 0
             if self.done_state_inside_planetary_boundaries():
-                reward = - 5 # 不仅是要原理，还要惩罚
+                reward = - 100 # 不仅是要原理，还要惩罚
             else:
-                reward = - 10 * (self.T_a_PB - T_a ) 
+                reward = - 1 * (self.T_a_PB - T_a ) 
             
-            if self.t > 2099:
-                if T_a < self.T_a_PB: #
-                    reward = reward + 10
+            if self.t >= 2098:
+                if T_a < 1.5: #
+                    reward = reward + 100
             
             return reward
     
-        def reward_paris_agreement_close():
+        def reward_paris_agreement_time_close():
             """巴黎协定奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
             
-            if self.done_state_inside_planetary_boundaries():
-                reward = - 5 # 不仅是要原理，还要惩罚
-            else:
-                reward = - 10 * (self.T_a_PB - T_a ) 
+            y = self.t                   # 当前年份
+            T = self.state[0]            # 当前温度 T_a
             
-            # 如果 2075 年时候，温度已经低于 1.5，则给予奖励
-            if self.t >= 2075:
-                if T_a <= 1.5:
-                    reward += 50
-                else:
-                    reward -= 50
-            
-            if self.t > 2099:
-                if T_a <= 1.5:
-                    reward += 100  # 成功完成任务
-                else:
-                    reward -= 100  # 任务失败
-            return reward
-        
-        def reward_paris_agreement_result_new():
-            """巴黎协定奖励函数"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = 0  # 初始化奖励
-            
-            # 主要的引导奖励部分
-            reward = - 10 * (self.T_a_PB - T_a ) 
-            
-            if self.done_state_inside_planetary_boundaries():
-                reward -= 5 # 不仅是要原理，还要惩罚
+            # —— 1. 灾难惩罚：温度过高立即“破产”
+            if T > 2.5:
+                return -100.0           # M_dis
                 
-            if self.t >= 2097:
-                if T_a < self.T_a_PB: #
-                    reward += 10 # 应该是累加计算
+            # 2. 定义超阈值的加倍惩罚和时间惩罚，促使越早达到目标且降低
+            P_over = max(T - 1.5, 0.0)
+            
+            y0, yc = 2016, 2030
+            gamma = 1
+            
+            if y0 <= y < yc:
+                w = 1.0 + gamma * (y - y0) / (yc - y0) # 提示时间变化需要加速调整
+            else:
+                w = 1.0
+
+            # —— 3. 分段主体
+            if y < yc:
+                # 2030年前：按加权惩罚超阈值
+                return - w * P_over
+            
+            elif y < 2098:
+                # 2030–2100：常规惩罚
+                return - 1.0 * P_over
+            
+            else:
+                # 终期阶段：最终评估
+                if abs(T - 1.5) <= 0.05:
+                    reward = 500.0  # 完全成功
+                elif T < 1.6:
+                    reward = 300.0  # 基本成功
+                elif T < 1.8:
+                    reward = 100.0  # 部分成功
+                else:
+                    reward = -100.0  # 失败惩罚
+                
             return reward
         
-        def reward_paris_agreement_result_lunar():
-            """简化的巴黎协定奖励函数 - 专注于温度控制"""
-            T_a = self.state[0]  # 只关注温度
-            
-            # 1. 计算 shaping 奖励 - 只关注温度差异
-            shaping = -100 * (T_a - self.T_a_PB)**2  # 温度偏差的二次惩罚
-            
-            # 2. 计算奖励差分
+        ################# ays copan 基本类型 reward 考虑 ##################
+        def reward_desirable_region_renewable():
+            """偏激主义的代表，只关注可再生能源
+            研究这种特殊的情况，不仅找到好的策略是哪些，同时展示利益主体探究的
+            结果，以及对于结果的反馈
+            Returns:
+                _type_: _description_
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
-            if hasattr(self, 'prev_shaping'):
-                reward = shaping - self.prev_shaping
-            self.prev_shaping = shaping
-            
-            # 3. 边界惩罚
-            if self.done_state_inside_planetary_boundaries():  # 超过温度边界
-                reward -= 10
-            
-            # 4. 最终状态奖励
-            if self.t >= 2099:
-                if T_a < self.T_a_PB:
-                    reward += 50  # 成功控制温度
-                else:
-                    reward -= 50  # 失败惩罚
-            
+            E11 = (
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
+            )  # 可再生能源1
+
+            desirable_share_renewable = 0.4
+            reward = 0.0
+            if (E21 + E22 + E23 + E24) / (
+                E21 + E22 + E23 + E24 + E12 + E11
+            ) >= desirable_share_renewable:
+                reward = 1.0
+            else:
+                reward = 0.0
+
             return reward
 
-        def reward_paris_agreement_positive_negative():
-            """加入稀疏奖励考虑"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
-            
-            current_year = self.t
-            
-            if current_year > 2095:
-                if T_a > self.T_a_PB:  
-                    reward = reward + 10
-                else:
-                    reward = reward - 10
-            return reward
-    
+
         def reward_paris_agreement_time():
-            """基于时间阶段的奖励函数"""
+            """基于时间阶段的多维度奖励函数
+            注意里面参照于巴黎协定，同时对于特殊情况也进行考虑，
+            由简到繁
+            """
+            
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             
             current_year = self.t
             
             if current_year < 2030:
-                reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
-                reduction = (877 - C_a) / 877
-                if reduction > 0.45:
+                reward = - (T_a - 1.5)  
+                
+                if C_a < 920:
                     reward = reward + 10
+                    
+                if C_a < 307: # 根据 巴黎协定的 8.6% 计算得到的
+                    reward = reward + 100
                 
-            if current_year >= 2030 and current_year <= 2050:
-                norm_T = T_a / 4.0 # 温度归一化 
-                norm_C = C_a / 1000.0 # 碳浓度归一化 
-                r_temp = -0.6 * 10 * (norm_T - (1.5 / 4.0))  # 惩罚温度偏离1.5°C 
+            elif current_year >= 2030 and current_year <= 2050:
+                reward = - 5 * (T_a - 1.5)  
                 
-                r_carbon = -0.4 * (norm_C - (970 / 1000.0)) # 净零排放奖励/惩罚 
-
-                reward = r_temp + r_carbon
+                if T_a < 1.5:
+                    reward = reward + 10
+                    
+                if C_a < 920:
+                    reward = reward + 10
+                    
+            elif current_year >= 2050:
+                reward = - 10 * (T_a - 1.5)  
                 
-            if current_year >= 2050:
-                reward = - 10 * np.linalg.norm(T_a - self.T_a_PB)  
-                if T_a < self.T_a_PB:
-                    reward = reward + 1
+                if T_a < 1.5:
+                    reward = reward + 50
+                    
+                if C_a < 920:
+                    reward = reward + 50
+                    
+            elif current_year >= 2098:
+                if T_a < 1.5:
+                    reward = reward + 100
                 else:
-                    reward = reward - 1
-
+                    reward = reward - 100
             return reward
-    
     
         ########### 设置 2 ° 下的奖励函数 ###########
         def reward_2_pb_temperature():
@@ -1466,38 +1470,38 @@ class IEMEnv(gym.Env):
                     reward = reward + 10
             return reward      
         
-        # 2025-04-22 的新思考 reward 函数
-        def reward_paris_agreement_carracing_lunar():
+        # # 2025-04-22 的新思考 reward 函数
+        # def reward_paris_agreement_carracing_lunar():
             
-            T_a = self.state[0]  # 只关注温度
+        #     T_a = self.state[0]  # 只关注温度
             
-            self.reward -= 0.1 # 越来越罚
+        #     self.reward -= 0.1 # 越来越罚
             
-            # 1. 计算 shaping 奖励 - 只关注温度差异 TODO: 可以向高维进行拓展
-            shaping = -100 * (T_a - self.T_a_PB)  # 温度偏差的二次惩罚，温度偏差惩罚
+        #     # 1. 计算 shaping 奖励 - 只关注温度差异 TODO: 可以向高维进行拓展
+        #     shaping = -100 * (T_a - self.T_a_PB)  # 温度偏差的二次惩罚，温度偏差惩罚
             
-            # 2. 计算奖励差分
+        #     # 2. 计算奖励差分
 
-            if hasattr(self, 'prev_shaping'):
-                step_reward = shaping - self.prev_shaping
-            else:
-                step_reward = 0
+        #     if hasattr(self, 'prev_shaping'):
+        #         step_reward = shaping - self.prev_shaping
+        #     else:
+        #         step_reward = 0
                  
-            self.prev_shaping = shaping
+        #     self.prev_shaping = shaping
             
-            reward = step_reward + self.reward
+        #     reward = step_reward + self.reward
             
-            # 3. 边界惩罚
-            if self.done_state_inside_planetary_boundaries():  # 超过温度边界
-                reward -= 10
+        #     # 3. 边界惩罚
+        #     if self.done_state_inside_planetary_boundaries():  # 超过温度边界
+        #         reward -= 10
             
-            # 4. 最终状态奖励
-            if self.t >= 2099:
-                if T_a < self.T_a_PB:
-                    reward = 50  # 成功控制温度
-                else:
-                    reward = -50  # 失败惩罚
-            return reward
+        #     # 4. 最终状态奖励
+        #     if self.t >= 2099:
+        #         if T_a < self.T_a_PB:
+        #             reward = 50  # 成功控制温度
+        #         else:
+        #             reward = -50  # 失败惩罚
+        #     return reward
         
         def reward_normal_paris_agreement_multi_objective_simulate():
             """考虑通过多维范数来计算奖励
@@ -1510,6 +1514,8 @@ class IEMEnv(gym.Env):
             s_max = np.array([3.83, 1319.727, 199.563, 1861.15, 2.44, 883.97, 366.92, 13.39, 47.50739, 50.312])
             weights = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) # 默认全都是一样
             
+            s_2016 = np.array([1.064859395, 859.622065, 132.4912632, 1256.997827, 0.471187391, 15.83579509, 2.436276218, 13.39951888, 47.50738509, 50.312])
+       
             clipped = np.minimum(np.maximum(state, s_min), s_max)
             epsilon = 1e-10 # 防止分母为0,这里是一个小 trick
             
@@ -1925,16 +1931,15 @@ class IEMEnv(gym.Env):
             
         self.current_action = action.copy() if hasattr(action, 'copy') else action
 
-    def reset(self, seed=None, options=None): # 可以单独进行设置
-
+    def reset(self, seed=None, options=None, start_state=None): # 可以单独进行设置
         # 如果提供了随机种子，则设置随机数生成器
         if seed is not None:
-            self.seed = seed
             self._set_seed(seed)
             
-        ######## env 本身 的部分 ########
-        # 1.储存数组部分与上一个 episode 区分开
-        # 初始化状态变量
+        # 初始化状态
+        self.seed = seed
+        self.state = np.array([0.0] * 10)  # 10个状态变量
+            
         # 经过基本运行后参数预热后已经长度对应了
         self.k21, self.k22, self.taoR21, self.taoP21, self.taoDV21, self.taoDF21 = (
             [],
@@ -2074,6 +2079,10 @@ class IEMEnv(gym.Env):
             "action_all_dim": [],
         }
         
+        # 添加动作历史记录
+        self.action_history = []  # 用于记录最近的动作
+        self.action_history_size = 10  # 记录最近10个动作
+        
         # Record state history - add this section
         self.state_history["time"].append(self.t)
         self.state_history["T_a"].append(self.state[0])
@@ -2161,7 +2170,6 @@ class IEMEnv(gym.Env):
             if self.data["step_idx"] % 2100 == 0:
                 self.render()
         
-
         # 空字典代替
         truncated = False
 
@@ -2187,10 +2195,12 @@ class IEMEnv(gym.Env):
         self.done = False
         if self.t >= self.model_end_year:
             self.done = True
+            
 
-        # if self.done_state_inside_planetary_boundaries():
-        if self.done_state_inside_2_temperature_planetary_boundaries():
+        if self.done_state_inside_planetary_boundaries():
             self.done = True
+        # # if self.done_state_inside_2_temperature_planetary_boundaries():
+        #     self.done = True
 
         # TODO: 考虑是否需要归一化: trafo_state=self.normalize_state(self.state)
         return self.state, reward, self.done, truncated, info
@@ -2301,6 +2311,8 @@ class IEMEnv(gym.Env):
         temp = self.state_history["T_a"]
         action = self.state_history["action"]
         reward = self.state_history["reward"]
+        
+        # print(time[-1], temp[-1], action[-1], reward[-1])
 
         if not hasattr(self, 'fig'):
             # 首次调用时创建图形
@@ -2339,11 +2351,9 @@ class IEMEnv(gym.Env):
         # 使用 pause 来更新图形
         plt.pause(1)  # 暂停一小段时间来更新图形
 
-        # 清除所有子图但保持窗口
-        for ax in axs:
-            ax.clear()
-
-
+        # # 清除所有子图但保持窗口
+        # for ax in axs:
+        #     ax.clear()
 
     def close(self):
         """关闭图形"""

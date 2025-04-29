@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>动作空间定义</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #eee; }
+  </style>
+</head>
+<body>
+  <h2>离散动作空间定义</h2>
+  <p>我们将 16 种离散动作，用一个 4 维二值向量来刻画，每一维对应一个政策杠杆是否加速：</p>
+  <p>
+    <code>𝒂 = (a<sub>S</sub>, a<sub>R</sub>, a<sub>A</sub>, a<sub>I</sub>),  
+    a<sub>j</sub> ∈ {0,1}</code>
+  </p>
+  <ul>
+    <li><code>a<sub>S</sub></code>：社会响应速度增强（SocialResponseTime_Speed），<code>0</code> 表示默认速度</li>
+    <li><code>a<sub>R</sub></code>：可再生能源技术推广加速（RenewableEnergy_Speed），<code>0</code> 表示默认</li>
+    <li><code>a<sub>A</sub></code>：大气碳提取技术启动加速（ACE_Speed），<code>0</code> 表示默认</li>
+    <li><code>a<sub>I</sub></code>：可再生能源投资加速（RenewableEnergyInvestment_Speed），<code>0</code> 表示默认</li>
+  </ul>
+  <p>动作空间即为这四个二值变量的笛卡尔积：</p>
+  <p>
+    <code>𝒜 = {0,1}<sup>4</sup></code>，
+    因此共有 <code>2<sup>4</sup> = 16</code> 种可能的组合。
+  </p>
+  <p>可以将这 4 维二进制向量映射到标量索引 <code>k ∈ {0,…,15}</code>，按二进制编码：</p>
+  <p>
+    <code>k = 8·a<sub>S</sub> + 4·a<sub>R</sub> + 2·a<sub>A</sub> + 1·a<sub>I</sub></code>
+  </p>
+  <h3>动作编号与含义对应表</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>k</th>
+        <th>(a<sub>S</sub>, a<sub>R</sub>, a<sub>A</sub>, a<sub>I</sub>)</th>
+        <th>含义</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>(0,0,0,0)</td><td>SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default</td></tr>
+      <tr><td>1</td><td>(0,0,0,1)</td><td>… + RenewableEnergyInvestment_Speed</td></tr>
+      <tr><td>2</td><td>(0,0,1,0)</td><td>… + ACE_Speed + …</td></tr>
+      <tr><td>3</td><td>(0,0,1,1)</td><td>ACE_Speed + RenewableEnergyInvestment_Speed + …</td></tr>
+      <!-- 其余行可依此类推 -->
+      <tr><td>15</td><td>(1,1,1,1)</td><td>SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

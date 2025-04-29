@@ -894,7 +894,7 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "normal_paris_agreement_multi_objective_oneline_all"
+    custom_reward_type = "sparse"
     rl_model_name = "fixed_action_0010"
     network_name = "Netxxx_no_debug"
     all_episode_num = 1
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = 14
+    fixed_action = 1
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
@@ -946,6 +946,7 @@ if __name__ == "__main__":
             
             if done:
                 print(f"Episode {episode} finished at step {i}")
+                env.render()
                 break
             
             ############ 添加转换的部分 #########
