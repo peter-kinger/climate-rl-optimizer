@@ -1074,8 +1074,8 @@ class IEMEnv(gym.Env):
             """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            if self.done_state_inside_planetary_boundaries():
-                reward = -100
+            if T_a > 2.5 :
+                reward = - 100
             else:
                 reward = - np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
@@ -1219,28 +1219,35 @@ class IEMEnv(gym.Env):
             # TODO 指数靠近的变化探究
             
             # reward = - 0.1
-            reward = 0
+
             # if np.linalg.norm(T_a - self.T_a_PB) < 0.01: # 0.5 和 0.1 效果都很差
             #     reward = 1
             # else:
             #     reward = 
             
+            reward = 0
+            
             # 增加一个超过 1.5 以后的微小惩罚
             if T_a > 1.76:
-                reward = - 10 * (T_a - 1.5)
+                reward = - 10 * (T_a - 1.5) # 因为超过1.5前期都有惩罚了
             else:
-                if self.done_state_inside_planetary_boundaries():
-                    reward = reward - 50
+                reward = -  (T_a - 1.5)
+
+            if T_a > 2.5:
+                reward = reward - 50
            
             # if self.good_sustainable_state():
             #     reward = reward + 0.1
              
-            if self.t >= 2098:
-                if T_a  <= 1.5: #
-                    # reward = reward + 100
-                    reward = 50 - abs(T_a - 1.5)
+            if self.t >= 2099:
+                if abs(self.state[0] - 1.5) <= 0.05:   # 误差在±0.05°C 以内
+                    reward += 200.0                       # 完全达标
+                elif abs(self.state[0] - 1.5) <= 0.1:
+                    reward +=  100.0                       # 次优达标
+                elif abs(self.state[0] - 1.5) <= 0.2:
+                    reward += 10
                 else:
-                    reward = reward - 30
+                    reward -= 50.0                       # 失约惩罚
                     
             return reward
     
@@ -1383,33 +1390,17 @@ class IEMEnv(gym.Env):
     
         ########### 设置 2 ° 下的奖励函数 ###########
         def reward_2_pb_temperature():
-            """2 个 pb 的奖励函数"""
+            """2 ℃情况下的 pb 的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = 0
-            
-            if self.done_state_inside_2_temperature_planetary_boundaries():
-                reward = - 10
+
+            if T_a > 2.5 :
+                reward = - 100
             else:
                 reward = - np.linalg.norm(T_a - 2)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
                 
             return reward
         
-        def reward_2_good_temperature():
-            """2 个 pb 的奖励函数"""
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            reward = 0
-            
-            if self.done_state_inside_2_temperature_planetary_boundaries():
-                reward = - 10
-            else:
-                reward = - np.linalg.norm(T_a - 2)
-                reward = reward * 10  # TODO: 10, 100, 1000, 10000
-                
-            if self.t >= 2099:
-                if T_a < 2:
-                    reward = reward + 100 # 成功完成任务，失败了也不是很严重
-            return reward
         
         def reward_2_desirable_region_renewable():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
@@ -1469,39 +1460,6 @@ class IEMEnv(gym.Env):
                 if T_a < 2:
                     reward = reward + 10
             return reward      
-        
-        # # 2025-04-22 的新思考 reward 函数
-        # def reward_paris_agreement_carracing_lunar():
-            
-        #     T_a = self.state[0]  # 只关注温度
-            
-        #     self.reward -= 0.1 # 越来越罚
-            
-        #     # 1. 计算 shaping 奖励 - 只关注温度差异 TODO: 可以向高维进行拓展
-        #     shaping = -100 * (T_a - self.T_a_PB)  # 温度偏差的二次惩罚，温度偏差惩罚
-            
-        #     # 2. 计算奖励差分
-
-        #     if hasattr(self, 'prev_shaping'):
-        #         step_reward = shaping - self.prev_shaping
-        #     else:
-        #         step_reward = 0
-                 
-        #     self.prev_shaping = shaping
-            
-        #     reward = step_reward + self.reward
-            
-        #     # 3. 边界惩罚
-        #     if self.done_state_inside_planetary_boundaries():  # 超过温度边界
-        #         reward -= 10
-            
-        #     # 4. 最终状态奖励
-        #     if self.t >= 2099:
-        #         if T_a < self.T_a_PB:
-        #             reward = 50  # 成功控制温度
-        #         else:
-        #             reward = -50  # 失败惩罚
-        #     return reward
         
         def reward_normal_paris_agreement_multi_objective_simulate():
             """考虑通过多维范数来计算奖励
@@ -2050,6 +2008,11 @@ class IEMEnv(gym.Env):
         # self.state[7] = self.state[7] # 这几个量波动性不大
         # self.state[8] = self.state[8] 
         # self.state[9] = self.state[9]
+        
+        
+        # 增加手动设置初始值
+        if start_state is not None:
+            self.state = start_state
          
         self.t = self.control_start_year - 1 # 2016，管控时间还没有开始，2016 + action_2017 年 结果才是 2017 年 结果
 
