@@ -24,6 +24,8 @@
 ├─data
 │  ├─input_data
 │  └─validation_data
+│      ├─iseec_case5_FluctuateNo_Ssp5_SLCPMITMit_SocialTrue_TechInvest_Eta21_2_Eta22_2
+|  └─without_rl (随机的初始化数据)
 ├─src
 │  ├─envs
 │  └─utils

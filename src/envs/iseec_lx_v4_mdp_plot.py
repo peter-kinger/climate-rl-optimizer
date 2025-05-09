@@ -1102,6 +1102,19 @@ class IEMEnv(gym.Env):
                 if T_a < 1.5:
                     reward = reward + 100
 
+            # —— 3. **精确终期大激励** ——#
+            # 仅在最后一步（2100年）触发，根据与目标1.5°C的偏差δ给不同档次的奖励/惩罚
+            if self.t == 2100:
+                delta = abs(T_a - 1.5)
+                if delta <= 0.02:
+                    reward += 2000    # 准确率极高，超大激励
+                elif delta <= 0.05:
+                    reward += 1000    # 准确率很高，大激励
+                elif delta <= 0.1:
+                    reward +=  500    # 达到合理近似，中激励
+                else:
+                    reward -= 1000    # 未达标，重度惩罚
+
             return reward
                
         # 距离计算版本
@@ -1123,16 +1136,41 @@ class IEMEnv(gym.Env):
                 # 越界线性大惩罚
                 reward = - 10 * (T_a - 1.5)
 
-            #—— 81 步时的达标奖励 ——#
-            if t == self.bonus_steps and self.all_below:
-                reward += self.bonus_amount
+            # #—— 81 步时的达标奖励 ——#
+            # if t == self.bonus_steps and self.all_below:
+            #     reward += self.bonus_amount
+            
                 
-            if self.t >= 2098:
-                if T_a < 1.5:
-                    reward = reward + 100
-                else:
-                    reward = reward - 10
-            return reward
+            # if self.t >= 2098:
+            #     if T_a < 1.5:
+            #         reward = reward + 100
+            #     else:
+            #         reward = reward - 10
+            
+            # 尝试线性的提示
+            # —— 2. 非终期的常规误差惩罚 —— #
+            # 基础惩罚 + 临终期加权
+            beta0 = 1.0     # 基础系数
+            beta1 = 9.0     # 时间加权系数，保证到 2100 年总惩罚系数为 beta0+beta1 = 10
+            # 将年份映射到 α∈[0,1]
+            alpha = min(max(t, 2080), 2100) - 2080
+            alpha = alpha / (2100 - 2080)
+
+            delta_T = abs(T_a - 1.5)
+            penalty = -(beta0 + beta1 * alpha) * delta_T
+
+            # —— 3. 终期额外正奖励 —— #
+            bonus = 0.0
+            epsilon = 0.1   # 容忍误差
+            R0      = 100.0 # 完全达标时的最大奖励
+            if t >= 2099 and delta_T <= epsilon:
+                # 随 delta_T 线性衰减：delta_T=0 得 R0，delta_T=epsilon 得 0
+                bonus = R0 * (1 - delta_T/epsilon)
+
+            reward = reward + penalty + bonus
+            
+            return reward 
+
            
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
@@ -1229,9 +1267,9 @@ class IEMEnv(gym.Env):
             
             # 增加一个超过 1.5 以后的微小惩罚
             if T_a > 1.76:
-                reward = - 10 * (T_a - 1.5) # 因为超过1.5前期都有惩罚了
+                reward = - 100 * (T_a - 1.5) # 因为超过1.5前期都有惩罚了
             else:
-                reward = -  (T_a - 1.5)
+                reward = -  10 * (T_a - 1.5)
 
             if T_a > 2.5:
                 reward = reward - 50
@@ -1247,7 +1285,7 @@ class IEMEnv(gym.Env):
                 elif abs(self.state[0] - 1.5) <= 0.2:
                     reward += 10
                 else:
-                    reward -= 50.0                       # 失约惩罚
+                    reward -= 200.0                       # 失约惩罚
                     
             return reward
     
@@ -1381,11 +1419,24 @@ class IEMEnv(gym.Env):
                 if C_a < 920:
                     reward = reward + 50
                     
-            elif current_year >= 2098:
-                if T_a < 1.5:
-                    reward = reward + 100
+            # elif current_year >= 2098:
+            #     if T_a < 1.5:
+            #         reward = reward + 100
+            #     else:
+            #         reward = reward - 100
+            
+            elif current_year >= 2090:
+                delta = abs(T_a - 1.5)
+                # 方案 A：阈值奖励
+                if delta <= 0.05:
+                    reward += 500   # 完全精准奖励
+                elif delta <= 0.10:
+                    reward +=  200   # 次优精准奖励
+                elif delta <= 0.2:
+                    reward += 50
                 else:
-                    reward = reward - 100
+                    reward -= 50    # 失败惩罚
+            
             return reward
     
         ########### 设置 2 ° 下的奖励函数 ###########
@@ -1546,6 +1597,10 @@ class IEMEnv(gym.Env):
             return reward_pb_temperature_simple_gpt
         elif reward_type == "critical_ste_temperature":
             return reward_critical_ste_temperature
+        
+        elif reward_type == "pb_temperature_growth":
+            return reward_pb_temperature_growth
+        
         elif reward_type == "desirable_region_renewable":
             return reward_desirable_region_renewable
         elif reward_type == "simple_spare":
@@ -1586,6 +1641,9 @@ class IEMEnv(gym.Env):
             return reward_normal_paris_agreement_multi_objective_simulate
         elif reward_type == "normal_paris_agreement_multi_objective_oneline_all":
             return reward_normal_paris_agreement_multi_objective_oneline_all
+        
+        elif reward_type == "pb_temperature_init":
+            return reward_pb_temperature_init
         
         else:
             raise ValueError("没有对应的奖励函数")
@@ -1998,16 +2056,16 @@ class IEMEnv(gym.Env):
         self.state = np.array(ode_solutions[-1], dtype=np.float64) 
         
         # # 新增随机扰动的初始状态: 方案 3 年，均匀分布
-        # self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 5, high=+0.104 * 5)
-        # self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 5, high=12.750 * 5)
-        # self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 5, high=1.801 * 5)
-        # self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 5, high=14.930 * 5)
-        # self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 5, high=0.038 * 5)
-        # self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 5, high=18.227 * 5)
-        # self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 5, high=18.599 * 5)
-        # self.state[7] = self.state[7] # 这几个量波动性不大
-        # self.state[8] = self.state[8] 
-        # self.state[9] = self.state[9]
+        self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 3, high=+0.104 * 3)
+        self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 3, high=12.750 * 3)
+        self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 3, high=1.801 * 3)
+        self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 3, high=14.930 * 3)
+        self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 3, high=0.038 * 3)
+        self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 3, high=18.227 * 3)
+        self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 3, high=18.599 * 3)
+        self.state[7] = self.state[7] # 这几个量波动性不大
+        self.state[8] = self.state[8] 
+        self.state[9] = self.state[9]
         
         
         # 增加手动设置初始值
@@ -2160,8 +2218,8 @@ class IEMEnv(gym.Env):
             self.done = True
             
 
-        if self.done_state_inside_planetary_boundaries():
-            self.done = True
+        # if self.done_state_inside_planetary_boundaries():
+        #     self.done = True
         # # if self.done_state_inside_2_temperature_planetary_boundaries():
         #     self.done = True
 

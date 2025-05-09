@@ -14,7 +14,84 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, 
+import os
+
+
+def plot_hairy_lines(hairy_lines_path=None, coord_cols=None, fig=None, axes=None):
+    """通过外部的数据来进行绘制轨迹
+
+    Args:
+        hairy_lines_path (_type_, optional): _description_. Defaults to None.
+        coord_cols (_type_, optional): _description_. Defaults to None.
+        fig (_type_, optional): _description_. Defaults to None.
+        axes (_type_, optional): _description_. Defaults to None.
+    """
+    # 循环读取 data\without_rl 里面的 csv 文件，并进行3维变量绘制
+    if hairy_lines_path is None:
+        hairy_lines_path = 'data/without_rl_100'    
+    if coord_cols is None:
+        coord_cols = ('T_a', 'C_a', 'E21')
+
+    if axes is None:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        ax = axes # 读取外部的绘制
+        
+    # 颜色的选择
+    colortop = "lime"
+    colorbottom = "black"
+
+    # 循环读取 data\without_rl 里面的 csv 文件，并进行3维变量绘制
+    for file_name in os.listdir(hairy_lines_path):
+        if file_name.endswith('.csv'):
+            file_path = os.path.join(hairy_lines_path, file_name)
+            df = pd.read_csv(file_path)
+            # 绘制3维变量
+            ax.plot(df[coord_cols[0]], df[coord_cols[1]], df[coord_cols[2]], color=colorbottom if df['T_a'].iloc[-1] > 1.5 else colortop, linewidth=1, alpha=.08)
+
+def plot_compare_lines(compare_lines_path=None, coord_cols=None, fig=None, axes=None):
+    """比较没有 rl 管理的结果，轨迹将会是什么样的
+
+    Args:
+        compare_lines_path (_type_, optional): _description_. Defaults to None.
+        coord_cols (_type_, optional): _description_. Defaults to None.
+        fig (_type_, optional): _description_. Defaults to None.
+        axes (_type_, optional): _description_. Defaults to None.
+    """
+
+    if compare_lines_path is None:
+        compare_lines_path = 'data\iseec_run_data'   
+         
+    if coord_cols is None:
+        coord_cols = ('T_a', 'C_a', 'E21')
+
+    if axes is None:
+        fig = plt.figure(figsize=(8,6)) 
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        ax = axes # 读取外部的绘制
+        
+    # 颜色的选择
+    colortop = "lime"
+    colorbottom = "black"
+
+    # 循环读取 data\without_rl 里面的 csv 文件，并进行3维变量绘制
+    for file_name in os.listdir(compare_lines_path):
+        if file_name.endswith('.csv'):
+            file_path = os.path.join(hairy_lines_path, file_name)
+            
+            # 利用 df 读取 xlsx 文件
+            df = pd.read_excel(file_path, sheet_name='Sheet1')
+            
+            # 只读取 time 在 2017到2099 的数据
+            df = df[(df['time']>=2017) & (df['time']<=2099)]
+            # 绘制3维变量
+            ax.plot(df[coord_cols[0]], df[coord_cols[1]], df[coord_cols[2]], linewidth=1, alpha=.08)
+
+    
+
+def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, fig=None, axes=None,
                             cmap_name='viridis', linewidth=2):
     """
     读取 csv，绘制 3D 轨迹，并根据 action 着色。
@@ -46,8 +123,11 @@ def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None,
     colors = cmap(norm(actions))
     
     # 4) 绘图
-    fig = plt.figure(figsize=(8,6))
-    ax = fig.add_subplot(111, projection='3d')
+    if axes is None:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        ax = axes # 读取外部的绘制
     
     # 按线段逐条绘制，确保每段用该段起点的 action 着色
     for i in range(len(coords)-1):
@@ -114,12 +194,17 @@ def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None,
                         ax=ax, pad=0.1)
     cbar.set_label('Action value')
     plt.tight_layout()
+    
+    plot_hairy_lines(fig=fig, axes=ax)
+    # plot_compare_lines(fig=fig, axes=ax)
+    
     plt.show()
     
     # TODO: 尾部增加多个 action 轨迹的相关说明
-
+    
+    return fig, ax
 
 if __name__ == '__main__':
     # 举例：如果你的文件叫 trajectories.csv，
     # 前 3 列是 x,y,z，第 7 列是 action，就这样调用
-    plot_colored_trajectory(f'output/sparse/rl_model_DQN_network_dict_pi_vf_default_800000/episode_0_results_20250430_113455.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)
+    fig, ax3d = plot_colored_trajectory(f'output/sparse/rl_model_DQN_network_dict_pi_vf_default_800000/episode_0_results_20250430_113455.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)

@@ -894,9 +894,9 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "sparse"
-    rl_model_name = "fixed_action_0010"
-    network_name = "Netxxx_no_debug"
+    custom_reward_type = "pb_temperature"
+    rl_model_name = "fixed_action_hariy"
+    network_name = "Netxxx_no_debug_plot"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = 1
+    fixed_action = 0
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 

@@ -12,9 +12,8 @@ def plot_hairy_lines(num, ax3d, env):
     iseec_0 = np.random.rand(num, 10) # TODO，初始扰动状态的部分
     time = np.linspace(0, 81, 1000)
     
-
   
-    for i in range(num):
+    for i in range(num):   
         x0 = iseec_0[i]
         traj = odeint(env.iseec_dynamics_v1_ste, x0, time, mxstep=50000)
         

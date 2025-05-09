@@ -129,7 +129,7 @@ def Save_data_episodeReward(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "PB_temperature"
+    custom_reward_type = "pb_temperature"
     rl_model_name = "fixed"
     network_name = "Netxxx_no"
     all_episode_num = 10
@@ -166,8 +166,8 @@ if __name__ == "__main__":
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
-            # action = fixed_action
-            action = env.action_space.sample()
+            action = fixed_action
+            # action = env.action_space.sample()
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
             ##################################
