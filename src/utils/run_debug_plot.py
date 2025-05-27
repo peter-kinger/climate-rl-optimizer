@@ -10,7 +10,6 @@ from matplotlib.gridspec import GridSpec
 import math
 import datetime
 
-
 from stable_baselines3.common.env_checker import check_env
 
 # 在代码最开始添加
@@ -894,7 +893,7 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "pb_temperature"
+    custom_reward_type = "multi_objective_governance_social_foundations_random_exp7"
     rl_model_name = "fixed_action_hariy"
     network_name = "Netxxx_no_debug_plot"
     all_episode_num = 1
@@ -914,7 +913,7 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = 0
+    fixed_action = 0 # 0 是 default ，1是最高值，14是最低值
 
     for episode in range(all_episode_num):  # 增加100次训练循环
 
@@ -928,7 +927,8 @@ if __name__ == "__main__":
 
         episode_reward = 0
 
-        obs = env.reset()
+        # obs = env.reset(use_random_reset=False)
+        obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
@@ -981,27 +981,27 @@ if __name__ == "__main__":
             total_timesteps_diy,
         )
 
-        # save_plot_SSM_future_data(
-        #     env,
-        #     custom_reward_type,
-        #     rl_model_name,
-        #     network_name,
-        #     episode,
-        #     total_action,
-        #     total_state,
-        #     total_timesteps_diy,
-        # )
+        save_plot_SSM_future_data(
+            env,
+            custom_reward_type,
+            rl_model_name,
+            network_name,
+            episode,
+            total_action,
+            total_state,
+            total_timesteps_diy,
+        )
         
-        # save_plot_NSM_future_data(
-        #     env,
-        #     custom_reward_type,
-        #     rl_model_name,
-        #     network_name,
-        #     episode,
-        #     total_action,
-        #     total_state,
-        #     total_timesteps_diy,
-        # )
+        save_plot_NSM_future_data(
+            env,
+            custom_reward_type,
+            rl_model_name,
+            network_name,
+            episode,
+            total_action,
+            total_state,
+            total_timesteps_diy,
+        )
 
         # env.append_data_reward(episode_reward)
 

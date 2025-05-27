@@ -1060,6 +1060,30 @@ class IEMEnv(gym.Env):
 
         return good_sustainable
 
+    def inside_planetary_boundaries(self):
+        """判断当前状态是否在地球的温度边界内"""
+        T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+        is_inside = True
+        if T_a > 1.5 or C_a > 945: # 根据 pb 当前值来调研得到
+            is_inside = False
+            # print("out of boundaries")
+        return is_inside
+    
+    def normalized_state_Ta(self, state=None):
+        """Normalize the temperature state variable T_a"""
+
+        return (state - 0) / (4 - 0)
+    
+    def normalized_state_Ca(self, state=None):
+        """Normalize the carbon state variable C_a"""
+
+        return (state - 600) / (1319 - 600)
+    
+    def normalized_state_energy_sf(self, state=None):
+        """Normalize the energy state variable energy_sf"""
+
+        return (state - 52.85234) / (1900 - 52.85234)
+        
     def get_reward_function(self, reward_type):
         """Choosing a reward function"""
         # 可以替换多种奖励类型
@@ -1587,7 +1611,350 @@ class IEMEnv(gym.Env):
             """考虑使用少数变量
             """
             pass
+        
+       
+        
+        def reward_multi_objective_governance_exp2():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            self.state_current = np.array([T_a, C_a])
+            self.state_target = np.array([2, 945])
+            
+            weights = np.array([1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            if self.inside_planetary_boundaries():
+                reward = np.linalg.norm(diff_weights) # 正负都可以，因为平方了
+            else:
+                reward = - 10 * np.linalg.norm(diff_weights)
+            
+            # TODO social foundations 的考虑
+            # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
+            # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
 
+            # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
+            # current_energy = np.array([E21, E22, E23, E24])
+            
+            # # 检查是否有任何一个当前值小于对应基准值
+            # for current, base_2017 in zip(current_energy, energy_2017):
+            #     if current < base_2017:
+            #         reward = - 50
+            #         break
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_governance_exp3():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            self.state_current = np.array([T_a, C_a])
+            self.state_target = np.array([1.5, 945])
+            
+            weights = np.array([0.6, 0.4]) # Ta Ca
+        
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            if self.inside_planetary_boundaries():
+                reward = np.linalg.norm(diff_weights) # 正负都可以，因为平方了
+            else:
+                reward = - 10 * np.linalg.norm(diff_weights)
+            
+            # TODO social foundations 的考虑
+            # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
+            # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
+
+            # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
+            # current_energy = np.array([E21, E22, E23, E24])
+            
+            # # 检查是否有任何一个当前值小于对应基准值
+            # for current, base_2017 in zip(current_energy, energy_2017):
+            #     if current < base_2017:
+            #         reward = - 50
+            #         break
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_governance_exp4():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            self.state_current = np.array([T_a, C_a])
+            self.state_target = np.array([1.5, 945])
+            
+            weights = np.array([1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            reward = np.linalg.norm(diff_weights)
+            
+            if self.inside_planetary_boundaries():
+                reward = reward # 正负都可以，因为平方了
+            else:
+                penalty = - 10 * np.linalg.norm(diff_weights)
+                reward = reward + penalty
+            
+            # TODO social foundations 的考虑
+            # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
+            # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
+
+            # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
+            # current_energy = np.array([E21, E22, E23, E24])
+            
+            # # 检查是否有任何一个当前值小于对应基准值
+            # for current, base_2017 in zip(current_energy, energy_2017):
+            #     if current < base_2017:
+            #         reward = - 50
+            #         break
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_governance_social_foundations_exp5():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            # 参照于 iseec 中本来的写法
+            E11 = (
+            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            - E12
+            - E21
+            - E22
+            - E23
+            - E24
+            )  # in this model set up, E terms are absoluate values
+            
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            
+            self.state_current = np.array([T_a, C_a, energy_sf])
+            self.state_target = np.array([1.5, 945, 580.934])
+            
+            weights = np.array([1, 1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
+            
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            reward = np.linalg.norm(diff_weights)
+            
+            if self.inside_planetary_boundaries():
+                reward = reward # 正负都可以，因为平方了
+            else:
+                penalty = - 10 * np.linalg.norm(diff_weights)
+                reward = reward + penalty
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_governance_random_exp6():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            # 参照于 iseec 中本来的写法
+            E11 = (
+            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            - E12
+            - E21
+            - E22
+            - E23
+            - E24
+            )  # in this model set up, E terms are absoluate values
+                   
+            self.state_current = np.array([T_a, C_a])
+            self.state_target = np.array([1.5, 945])
+            
+            weights = np.array([1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            reward = np.linalg.norm(diff_weights)
+            
+            if self.inside_planetary_boundaries():
+                reward = reward # 正负都可以，因为平方了
+            else:
+                penalty = - 10 * np.linalg.norm(diff_weights)
+                reward = reward + penalty
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_governance_social_foundations_random_exp7():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            # 参照于 iseec 中本来的写法
+            E11 = (
+            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            - E12
+            - E21
+            - E22
+            - E23
+            - E24
+            )  # in this model set up, E terms are absoluate values
+            
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            
+            self.state_current = np.array([T_a, C_a, energy_sf])
+            self.state_target = np.array([1.5, 945, 580.934])
+            
+            weights = np.array([1, 1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
+            
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            reward = np.linalg.norm(diff_weights)
+            
+            if self.inside_planetary_boundaries():
+                reward = reward # 正负都可以，因为平方了
+            else:
+                penalty = - 10 * np.linalg.norm(diff_weights)
+                reward = reward + penalty
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp8():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            # 参照于 iseec 中本来的写法
+            E11 = (
+            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            - E12
+            - E21
+            - E22
+            - E23
+            - E24
+            )  # in this model set up, E terms are absoluate values
+            
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            
+            self.state_current = np.array([T_a, C_a, energy_sf])
+            self.state_target = np.array([1.5, 945, 580.934])
+            
+            weights = np.array([1, 1, 1]) # Ta Ca
+            
+            # 重新对内部的变量进行归一化操作
+            # 首先各部分变量
+            
+            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
+            
+            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
+            
+            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
+            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
+            
+            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
+            
+            # 权重叠加计算
+            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            
+            reward = np.linalg.norm(diff_weights)
+            
+            if self.inside_planetary_boundaries():
+                reward = reward # 正负都可以，因为平方了
+            else:
+                penalty = - 10 * np.linalg.norm(diff_weights)
+                reward = reward + penalty
+            
+            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            return reward
+        
         # 通过选项返回函数，
         if reward_type == "pb_temperature":
             return reward_pb_temperature
@@ -1645,6 +2012,19 @@ class IEMEnv(gym.Env):
         elif reward_type == "pb_temperature_init":
             return reward_pb_temperature_init
         
+        elif reward_type == "multi_objective_governance_exp2":
+            return reward_multi_objective_governance_exp2
+        elif reward_type == "multi_objective_governance_exp3":
+            return reward_multi_objective_governance_exp3
+        elif reward_type == "multi_objective_governance_exp4":
+            return reward_multi_objective_governance_exp4
+        elif reward_type == "multi_objective_governance_social_foundations_exp5":
+            return reward_multi_objective_governance_social_foundations_exp5
+        elif reward_type == "multi_objective_governance_random_exp6":
+            return reward_multi_objective_governance_random_exp6
+        elif reward_type == "multi_objective_governance_social_foundations_random_exp7":    
+            return reward_multi_objective_governance_social_foundations_random_exp7
+
         else:
             raise ValueError("没有对应的奖励函数")
 
@@ -1947,7 +2327,7 @@ class IEMEnv(gym.Env):
             
         self.current_action = action.copy() if hasattr(action, 'copy') else action
 
-    def reset(self, seed=None, options=None, start_state=None): # 可以单独进行设置
+    def reset(self, use_random_reset=True, seed=None, start_state=None): # 可以单独进行设置
         # 如果提供了随机种子，则设置随机数生成器
         if seed is not None:
             self._set_seed(seed)
@@ -2004,6 +2384,7 @@ class IEMEnv(gym.Env):
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
         self.carbon_tax_rate = 0 # 保证默认的可以运行
+        
         # 全用 action = 0 默认的来保证预热数据
         self.dE21_dt_drl = 6.03
         self.dE22_dt_drl = 6.08
@@ -2055,19 +2436,33 @@ class IEMEnv(gym.Env):
         # 对应的是 2016 年的初始数据，2016	1.064859411	859.6220675	132.4912636	1256.997825	0.471187383	15.83579504	2.436276166	13.39951888	47.50738509	50.312
         self.state = np.array(ode_solutions[-1], dtype=np.float64) 
         
-        # # 新增随机扰动的初始状态: 方案 3 年，均匀分布
-        self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 3, high=+0.104 * 3)
-        self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 3, high=12.750 * 3)
-        self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 3, high=1.801 * 3)
-        self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 3, high=14.930 * 3)
-        self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 3, high=0.038 * 3)
-        self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 3, high=18.227 * 3)
-        self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 3, high=18.599 * 3)
-        self.state[7] = self.state[7] # 这几个量波动性不大
-        self.state[8] = self.state[8] 
-        self.state[9] = self.state[9]
+        # 根据 bool 来考虑是否使用随机扰动
+        if use_random_reset:
+            # 新增随机扰动的初始状态: 方案 3 年，均匀分布
+            self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 3, high=+0.104 * 3)
+            self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 3, high=12.750 * 3)
+            self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 3, high=1.801 * 3)
+            self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 3, high=14.930 * 3)
+            self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 3, high=0.038 * 3)
+            self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 3, high=18.227 * 3)
+            self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 3, high=18.599 * 3)
+            self.state[7] = self.state[7] # 这几个量波动性不大
+            self.state[8] = self.state[8] 
+            self.state[9] = self.state[9]
+        else:
+            # 直接使用预热的值
+            self.state[0] = self.state[0]
+            self.state[1] = self.state[1]
+            self.state[2] = self.state[2]
+            self.state[3] = self.state[3]
+            self.state[4] = self.state[4]
+            self.state[5] = self.state[5]
+            self.state[6] = self.state[6]
+            self.state[7] = self.state[7]
+            self.state[8] = self.state[8]
+            self.state[9] = self.state[9]
         
-        
+
         # 增加手动设置初始值
         if start_state is not None:
             self.state = start_state
@@ -2142,7 +2537,7 @@ class IEMEnv(gym.Env):
         """
 
         # reward 单独计算方面
-        self.prev_deviation = np.linalg.norm(self.state[0] - self.T_a_PB)
+        # self.prev_deviation = np.linalg.norm(self.state[0] - self.T_a_PB)
 
         # 增加一个时间步长来进行ode求解
         next_t = self.t + self.dt
@@ -2186,7 +2581,6 @@ class IEMEnv(gym.Env):
         # 为了 z-score 的计算，需要记录所有的 obs
         self.obs_history.append(self.state.copy())
         
-        
         if self.render_mode_diy == "human":
             if self.data["step_idx"] % 2100 == 0:
                 self.render()
@@ -2217,7 +2611,6 @@ class IEMEnv(gym.Env):
         if self.t >= self.model_end_year:
             self.done = True
             
-
         # if self.done_state_inside_planetary_boundaries():
         #     self.done = True
         # # if self.done_state_inside_2_temperature_planetary_boundaries():
