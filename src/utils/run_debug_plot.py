@@ -893,7 +893,7 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "multi_objective_governance_social_foundations_random_exp7"
+    custom_reward_type = "multi_objective_single_T_a_exp8"
     rl_model_name = "fixed_action_hariy"
     network_name = "Netxxx_no_debug_plot"
     all_episode_num = 1
@@ -915,6 +915,30 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0, 0, 0])
     fixed_action = 0 # 0 是 default ，1是最高值，14是最低值
 
+    human_action_guard = [
+        0, 0, 0, 0, 0, 0, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 6, 6, 6, 6,
+        6, 6, 10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+        15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+        15, 15, 15, 15, 15, 15, 15, 15, 14, 14,
+        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+        14, 14, 14, 14
+    ]  # 10 年分割相关的动作序列
+
+    human_action_radicalness = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 14, 14, 14, 14, 14,
+        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+        14, 14, 10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9
+    ]
+
     for episode in range(all_episode_num):  # 增加100次训练循环
 
         ##################################
@@ -927,14 +951,15 @@ if __name__ == "__main__":
 
         episode_reward = 0
 
-        # obs = env.reset(use_random_reset=False)
-        obs = env.reset()  # 重置环境，获得初始状态
+        obs = env.reset(use_random_reset=False)
+        # obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
             
-            action = fixed_action
-            # action = env.action_space.sample()
+            # action = fixed_action
+            # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
+            action = env.action_space.sample()
             
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 

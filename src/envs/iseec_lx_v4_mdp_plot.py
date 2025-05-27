@@ -1909,50 +1909,77 @@ class IEMEnv(gym.Env):
             """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            # 参照于 iseec 中本来的写法
-            E11 = (
-            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            - E12
-            - E21
-            - E22
-            - E23
-            - E24
-            )  # in this model set up, E terms are absoluate values
+            # # 参照于 iseec 中本来的写法
+            # E11 = (
+            # self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            # - E12
+            # - E21
+            # - E22
+            # - E23
+            # - E24
+            # )  # in this model set up, E terms are absoluate values
             
-            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            # # energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
             
-            self.state_current = np.array([T_a, C_a, energy_sf])
-            self.state_target = np.array([1.5, 945, 580.934])
+            # self.state_current = np.array([T_a])
+            # self.state_target = np.array([1.5])
             
-            weights = np.array([1, 1, 1]) # Ta Ca
+            # weights = np.array([1]) # Ta Ca
             
-            # 重新对内部的变量进行归一化操作
-            # 首先各部分变量
+            # # 重新对内部的变量进行归一化操作
+            # # 首先各部分变量
             
-            state_current_normalized_Ta = self.normalized_state_Ta(T_a)
-            state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
+            # state_current_normalized_Ta = self.normalized_state_Ta(T_a)
+            # state_current_normalized = np.array([state_current_normalized_Ta]) # 组合的值
             
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
+            # state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
+            # state_target_normalized = np.array([state_target_normalized_Ta]) # 组合的目标值
             
-            state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
-            state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
+            # # 权重叠加计算
+            # diff_weights = weights * (state_current_normalized - state_target_normalized)
             
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
+            # reward = np.linalg.norm(diff_weights)
             
-            # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
+            # # if self.inside_planetary_boundaries():
+            # reward = reward # 正负都可以，因为平方了
+            # # else:
+            #     # penalty = - 10 * np.linalg.norm(diff_weights)
+            #     # reward = reward + penalty
             
-            reward = np.linalg.norm(diff_weights)
+            # # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             
-            if self.inside_planetary_boundaries():
-                reward = reward # 正负都可以，因为平方了
-            else:
-                penalty = - 10 * np.linalg.norm(diff_weights)
-                reward = reward + penalty
+            T_a_reference=1.5
+            T_a_lower_bound= 1.128
             
-            # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -20.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚
+            if T_a < T_a_lower_bound:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
             return reward
         
         # 通过选项返回函数，
@@ -2025,6 +2052,8 @@ class IEMEnv(gym.Env):
         elif reward_type == "multi_objective_governance_social_foundations_random_exp7":    
             return reward_multi_objective_governance_social_foundations_random_exp7
 
+        elif reward_type == "multi_objective_single_T_a_exp8":
+            return reward_multi_objective_single_T_a_exp8
         else:
             raise ValueError("没有对应的奖励函数")
 
