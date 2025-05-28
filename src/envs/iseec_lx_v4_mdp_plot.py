@@ -1949,7 +1949,7 @@ class IEMEnv(gym.Env):
             # # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             
             T_a_reference=1.5
-            T_a_lower_bound= 1.128
+            T_a_lower_bound= 1.25
             
             reward = 0.0
 
@@ -1958,13 +1958,12 @@ class IEMEnv(gym.Env):
             penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
             penalty_for_too_low = -20.0       # T_a低于下限时的固定惩罚
 
-            # 1. T_a 低于 T_a_lower_bound 时的惩罚
-            if T_a < T_a_lower_bound:
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
                 reward = penalty_for_too_low
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                
                 return reward # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
@@ -1972,7 +1971,6 @@ class IEMEnv(gym.Env):
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
                 
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
             else: # T_a >= T_a_reference
@@ -2749,6 +2747,7 @@ class IEMEnv(gym.Env):
          
     def render(self, mode="human"):
 
+        # 同时绘制 多个 state 和 action 的变化
         # 方式 2 ，过程中多个绘制
         time = self.state_history["time"]
         temp = self.state_history["T_a"]

@@ -52,6 +52,7 @@ def plot_hairy_lines(hairy_lines_path=None, coord_cols=None, fig=None, axes=None
 
 def plot_compare_lines(compare_lines_path=None, coord_cols=None, fig=None, axes=None):
     """比较没有 rl 管理的结果，轨迹将会是什么样的
+    （即 rl 管理中的几个经典 case）
 
     Args:
         compare_lines_path (_type_, optional): _description_. Defaults to None.
@@ -91,8 +92,7 @@ def plot_compare_lines(compare_lines_path=None, coord_cols=None, fig=None, axes=
 
     
 
-def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, fig=None, axes=None,
-                            cmap_name='viridis', linewidth=2):
+def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, fig=None, axes=None, colour=None):
     """
     读取 csv，绘制 3D 轨迹，并根据 action 着色。
     
@@ -119,35 +119,59 @@ def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, fig=None
     # 3) 归一化 action，用于 colormap
     # 这行代码创建了一个归一化器，将 actions 数组中的值映射到 [0,1] 区间
     norm = plt.Normalize(vmin=actions.min(), vmax=actions.max())
-    cmap = plt.get_cmap(cmap_name)
-    colors = cmap(norm(actions))
+    cmap = plt.get_cmap('Set1') # 或者使用 tab10
+    
+    colors = cmap(norm(actions)) # 直接是根据颜色的值来进行归一化
     
     # 4) 绘图
-    if axes is None:
+    if axes is None and colour == None: # 单一算法的绘制
         fig = plt.figure(figsize=(8,6))
         ax = fig.add_subplot(111, projection='3d')
-    else:
-        ax = axes # 读取外部的绘制
-    
-    # 按线段逐条绘制，确保每段用该段起点的 action 着色
-    for i in range(len(coords)-1):
-        xs, ys, zs = coords[i:i+2, 0], coords[i:i+2, 1], coords[i:i+2, 2]
-        ax.plot(xs, ys, zs, color=colors[i], linewidth=linewidth)
         
-        # 增加 action label 部分
-        if actions[i] != actions[i+1]:  # 只在动作发生变化时添加标签
-            ax.text(xs[0], ys[0], zs[0], f'a={actions[i]}', 
-                   fontsize=8, backgroundcolor='white')
-    
-    # 可选：点状展示（对轨迹进行说明）
-    ax.scatter(coords[:,0], coords[:,1], coords[:,2], 
-               c=actions, cmap=cmap_name, norm=norm, s=20)
+        # 按线段逐条绘制，确保每段用该段起点的 action 着色
+        for i in range(len(coords)-1):
+            xs, ys, zs = coords[i:i+2, 0], coords[i:i+2, 1], coords[i:i+2, 2]
+            ax.plot(xs, ys, zs, color=colors[i], linewidth=4)
+            
+            # # 增加 action label 部分
+            # if actions[i] != actions[i+1]:  # 只在动作发生变化时添加标签
+            #     ax.text(xs[0], ys[0], zs[0], f'a={actions[i]}', 
+            #            fontsize=8, backgroundcolor='white')
+        
+            # # 可选：动作变化点加标注
+            # if i == 0 or actions[i] != actions[i-1]:
+            #     ax.text(xs[0], ys[0], zs[0], f'{actions[i]}', fontsize=8, color=colors[i])
+    elif axes is None and colour is not None:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        
+        # 按线段逐条绘制，确保每段用该段起点的 action 着色
+        for i in range(len(coords)-1):
+            xs, ys, zs = coords[i:i+2, 0], coords[i:i+2, 1], coords[i:i+2, 2]
+            ax.plot(xs, ys, zs, color=colour, linewidth=4)
+            
+            # # 增加 action label 部分
+            # if actions[i] != actions[i+1]:  # 只在动作发生变化时添加标签
+            #     ax.text(xs[0], ys[0], zs[0], f'a={actions[i]}', 
+            #            fontsize=8, backgroundcolor='white')
+        
+            # # 可选：动作变化点加标注
+            # if i == 0 or actions[i] != actions[i-1]:
+            #     ax.text(xs[0], ys[0], zs[0], f'{actions[i]}', fontsize=8, color=colors[i])
+            
+    else: # 多个算法的绘制
+        ax = axes # 读取外部的绘制, 多个算法的绘制
+        # 按线段逐条绘制，确保每段用该段起点的 action 着色
+        for i in range(len(coords)-1):
+            xs, ys, zs = coords[i:i+2, 0], coords[i:i+2, 1], coords[i:i+2, 2]
+            ax.plot(xs, ys, zs, color=colour, linewidth=4)
     
     # 对起点和终点作点状标记
     ax.scatter(coords[0,0], coords[0,1], coords[0,2], 
-              color='red', s=100, marker='*', label='Start')
+              color='red', s=50, marker='o', label='Start')
     ax.scatter(coords[-1,0], coords[-1,1], coords[-1,2], 
-              color='green', s=100, marker='*', label='End')
+              color='green', s=50, marker='o', label='End') # maker 表示具体的标记样式
     
     # # 添加起点终点的具体数值标注
     # ax.text(coords[0,0], coords[0,1], coords[0,2], 
@@ -157,54 +181,107 @@ def plot_colored_trajectory(csv_path, coord_cols=None, action_col=None, fig=None
     #         f'End\n({coords[-1,0]:.2f}, {coords[-1,1]:.2f}, {coords[-1,2]:.2f})', 
     #         fontsize=8, color='green')
     
-    # 首先绘制灰色半透明边界墙
-    x_min, x_max = coords[:,0].min(), coords[:,0].max()
-    y_min, y_max = coords[:,1].min(), coords[:,1].max()
-    z_min, z_max = coords[:,2].min(), coords[:,2].max()
-    
-    # 创建三个面的网格
-    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 20),
-                        np.linspace(y_min, y_max, 20))
-    xz, yz = np.meshgrid(np.linspace(x_min, x_max, 20),
-                        np.linspace(z_min, z_max, 20))
-    yz, zz = np.meshgrid(np.linspace(y_min, y_max, 20),
-                        np.linspace(z_min, z_max, 20))
-    
-    # 绘制三个面
-    ax.plot_surface(xx, yy, np.full_like(xx, z_min), alpha=0.1, color='gray')  # 底面
-    ax.plot_surface(np.full_like(xz, x_max), yz, xz, alpha=0.1, color='gray')  # 右面
-    ax.plot_surface(xz, np.full_like(xz, y_min), yz, alpha=0.1, color='gray')  # 左面
+    # 画 C_a=945 的墙（Y轴墙）
+    Y_wall = 945
+    X_min, X_max = ax.get_xlim()
+    Z_min, Z_max = ax.get_zlim()
+    X = np.linspace(X_min, 1.5, 20)  # 右边界正好到1.5
+    Z = np.linspace(Z_min, Z_max, 20)
+    X, Z = np.meshgrid(X, Z)
+    Y = np.full_like(X, Y_wall)
+    ax.plot_surface(X, Y, Z, color='gray', alpha=0.1)
+
+    # 画 T_a=1.5 的墙（X轴墙）
+    X_wall = 1.5
+    Y_min, Y_max = ax.get_ylim()
+    Z2 = np.linspace(Z_min, Z_max, 20)
+    Y2 = np.linspace(Y_min, 945, 20)  # 上边界正好到945
+    Y2, Z2 = np.meshgrid(Y2, Z2)
+    X2 = np.full_like(Y2, X_wall)
+    ax.plot_surface(X2, Y2, Z2, color='gray', alpha=0.1)
     
     # 增加对 action 的图例
     unique_actions = np.unique(actions)
-    legend_elements = [plt.Line2D([0], [0], color=cmap(norm(action)), 
+    legend_elements = [plt.Line2D([0], [0], color=cmap(norm(action)),  # 说明颜色部分线图例
                                 label=f'Action {action}', linewidth=2)
                       for action in unique_actions]
     
+    # 轨迹颜色与算法的图例
+    color_desc = {
+        'green': 'example case1',
+        'blue': 'example case2',
+        'red': 'example case3',
+        'orange': 'example case4'
+    }
+    color_handles = [
+        plt.Line2D([0], [0], color=color, lw=3, label=desc)
+        for color, desc in color_desc.items()
+    ]
+    # 起点终点的图例
+    point_handles = [
+        plt.Line2D([0], [0], color='red', marker='o', linestyle='', markersize=8, label='start'),
+        plt.Line2D([0], [0], color='green', marker='o', linestyle='', markersize=8, label='end')
+    ]
+    
+    # 合并所有图例元素
+    all_handles = legend_elements # color_handles + point_handles + legend_elements
+
     # 修改这里的图例处理方式
-    ax.legend(handles=legend_elements, loc='upper right')
+    ax.legend(handles=all_handles, loc='upper right')
     
     # 5) 格式化
-    ax.set_xlabel(coord_cols[0])  # 直接使用列名
-    ax.set_ylabel(coord_cols[1])
-    ax.set_zlabel(coord_cols[2])
+    ax.set_xlabel("atmospheric temperature" + " " + coord_cols[0] + "[℃]")  # 直接使用列名
+    ax.set_ylabel("atmospheric concentration" + " " + coord_cols[1] + "[gtc]")
+    ax.set_zlabel("existing  renewable technologies" + " " + r"$E_{21}$" + "[EJ]")
+
     plt.title('3D Trajectory Colored by Action')
     
-    cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), 
-                        ax=ax, pad=0.1)
-    cbar.set_label('Action value')
-    plt.tight_layout()
+    # 绘制 action 值的颜色条
+    # cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap) # 这里使用 ScalarMappable 来创建颜色条
+    #                     ax=ax, pad=0.1)
+    # cbar.set_label('Action value')
     
-    plot_hairy_lines(fig=fig, axes=ax)
+    plt.tight_layout() # Matplotlib 的一个常用函数，用于自动调整子图参数
+    
+    # optional: 算法对应颜色说明，手动对颜色算法进行标注
+
+    # optional: 右侧单独的图例说明
+    # 增加动作意义的单独说明
+    action_desc = { # 只说明加快的部分
+    2: "Accelerate the development of renewable energy",
+    4: "Speed the progress of ACE",
+    6: "renewable energy + ACE",
+    12: "ACE + Accelerate the investment of renewable Energy",
+    15: "all actions",}
+    desc_lines = [f"{k}: {v}" for k, v in action_desc.items()]
+    desc_text = "\n".join(desc_lines)
+    plt.subplots_adjust(right=0.75)  # 给右侧留空间
+    fig.text(0.78, 0.5, desc_text, va='center', ha='left', fontsize=12, bbox=dict(facecolor='white', edgecolor='black'))
+     
+    # optinal: 在基础的轨迹绘制上增加其他部分的绘制，启用方式：直接取消注释即可
+    # plot_hairy_lines(fig=fig, axes=ax)
     # plot_compare_lines(fig=fig, axes=ax)
-    
-    plt.show()
-    
-    # TODO: 尾部增加多个 action 轨迹的相关说明
+     
+    ax.grid(False) # 取消网格显示
+    # plt.show() # 
     
     return fig, ax
 
 if __name__ == '__main__':
     # 举例：如果你的文件叫 trajectories.csv，
     # 前 3 列是 x,y,z，第 7 列是 action，就这样调用
-    fig, ax3d = plot_colored_trajectory(f'output/sparse/rl_model_DQN_network_dict_pi_vf_default_800000/episode_0_results_20250430_113455.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)
+    
+    # optinal： 绘制单个算法情况
+    fig, ax3d = plot_colored_trajectory(f'output/multi_objective_single_T_a_exp8/rl_model_DQN_network_dict_pi_vf_default_500000/episode_0_results_20250527_113930.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)
+    
+    # # optinal： 绘制多个算法情况
+    # fig, ax3d = plot_colored_trajectory(f'output/multi_objective_single_T_a_exp8/rl_model_DQN_network_dict_pi_vf_default_500000/episode_0_results_20250527_113930.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3, colour='blue')
+
+    # # 不同算法继续在一个图坐标上绘制
+    # plot_colored_trajectory(f"output/multi_objective_single_T_a_exp8/rl_model_DQN_network_dict_pi_vf_default_700000/episode_0_results_20250527_200124.csv", coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='green')
+
+    # plot_colored_trajectory(f"output/multi_objective_single_T_a_exp8/rl_model_fixed_action_hariy_network_Netxxx_no_debug_plot_100/episode_0_results_20250527_195522.csv", coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='red')
+    
+    # plot_colored_trajectory(f"output/multi_objective_governance_social_foundations_exp5/rl_model_DQN_network_dict_pi_vf_default_600000/episode_0_results_20250520_212556.csv", coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='orange')
+    
+    plt.show()
