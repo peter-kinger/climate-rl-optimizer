@@ -1,0 +1,39 @@
+<!-- 定义符号及含义 -->
+<dl>
+    <dt><strong>R</strong></dt>
+    <dd>分段奖励函数的值（Reward）</dd>
+  
+    <dt><strong>y</strong></dt>
+    <dd>当前模型时间（年份），整数形式</dd>
+  
+    <dt><strong>T<sub>a</sub></strong></dt>
+    <dd>大气层平均温度相对工业化前基准的温度升高（℃）</dd>
+  
+    <dt><strong>T<sub>PB</sub></strong></dt>
+    <dd>行星边界温度阈值，即允许的最大温升限度（℃），通常取 1.5 ℃</dd>
+  
+    <dt><strong>C<sub>a</sub></strong></dt>
+    <dd>大气中 CO<sub>2</sub> 浓度（ppm）</dd>
+  
+    <dt><strong>〈·〉</strong></dt>
+    <dd>绝对值符号，如 |T<sub>a</sub> – T<sub>PB</sub>| 表示两者之差的绝对值</dd>
+  
+    <dt><strong>分段式定义</strong></dt>
+    <dd>
+      <ul>
+        <li><code>y &lt; 2030</code>：<br>
+            <code>R = –10 &times; |T<sub>a</sub> – T<sub>PB</sub>|</code></li>
+        <li><code>2030 ≤ y ≤ 2050</code>：<br>
+            <code>R = –0.6 &times; 10 &times; (T<sub>a</sub>/4 – 1.5/4)
+                  – 0.4 &times; (C<sub>a</sub>/1000 – 970/1000)</code></li>
+        <li><code>y &gt; 2050</code>：<br>
+            <code>R = –10 &times; |T<sub>a</sub> – T<sub>PB</sub}|
+                  + \begin{cases}
+                      +1, & T_a < T_{PB},\\
+                      –1, & T_a ≥ T_{PB}
+                    \end{cases}</code>
+        </li>
+      </ul>
+    </dd>
+  </dl>
+  

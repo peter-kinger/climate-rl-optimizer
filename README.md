@@ -11,14 +11,15 @@
 │      └─rl_model_fixed_network_Netxxx_no
 ├─debug_use
 ├─__pycache__
-├─model
+├─model (训练结果)
 │  └─iseec_v4_PPO_Net256_2e4
 ├─tests
-├─logs
+├─logs(训练结果 tensorboard)
 │  ├─sb3_log
 │  ├─monitor_logs
 │  └─tensorboard_logs
 │      ├─iseec_v4_PPO_Net256_2e4_1
+├─output(单次测试结果，可以通过analysis重新绘制)
 ├─Archives
 │  └─copy 
 ├─data

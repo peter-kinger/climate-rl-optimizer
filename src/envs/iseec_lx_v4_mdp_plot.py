@@ -1909,45 +1909,6 @@ class IEMEnv(gym.Env):
             """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            # # 参照于 iseec 中本来的写法
-            # E11 = (
-            # self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            # - E12
-            # - E21
-            # - E22
-            # - E23
-            # - E24
-            # )  # in this model set up, E terms are absoluate values
-            
-            # # energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            
-            # self.state_current = np.array([T_a])
-            # self.state_target = np.array([1.5])
-            
-            # weights = np.array([1]) # Ta Ca
-            
-            # # 重新对内部的变量进行归一化操作
-            # # 首先各部分变量
-            
-            # state_current_normalized_Ta = self.normalized_state_Ta(T_a)
-            # state_current_normalized = np.array([state_current_normalized_Ta]) # 组合的值
-            
-            # state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
-            # state_target_normalized = np.array([state_target_normalized_Ta]) # 组合的目标值
-            
-            # # 权重叠加计算
-            # diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
-            # reward = np.linalg.norm(diff_weights)
-            
-            # # if self.inside_planetary_boundaries():
-            # reward = reward # 正负都可以，因为平方了
-            # # else:
-            #     # penalty = - 10 * np.linalg.norm(diff_weights)
-            #     # reward = reward + penalty
-            
-            # # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
-            
             T_a_reference=1.5
             T_a_lower_bound= 1.25
             
@@ -1957,6 +1918,43 @@ class IEMEnv(gym.Env):
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
             penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
             penalty_for_too_low = -20.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp811():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.25
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -10.0       # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -2052,6 +2050,8 @@ class IEMEnv(gym.Env):
 
         elif reward_type == "multi_objective_single_T_a_exp8":
             return reward_multi_objective_single_T_a_exp8
+        elif reward_type == "multi_objective_single_T_a_exp811":
+            return reward_multi_objective_single_T_a_exp811
         else:
             raise ValueError("没有对应的奖励函数")
 
