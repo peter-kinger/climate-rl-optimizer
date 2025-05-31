@@ -1978,6 +1978,191 @@ class IEMEnv(gym.Env):
                 
             return reward
         
+        def reward_multi_objective_single_T_a_exp812():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.25
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp822():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.4
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp821():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.3
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp831():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.25
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t > 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp831():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference=1.5
+            T_a_lower_bound= 1.25
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t > 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+                
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else: # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty # 奖励为负值
+                
+            return reward
+         
         # 通过选项返回函数，
         if reward_type == "pb_temperature":
             return reward_pb_temperature
@@ -2052,6 +2237,15 @@ class IEMEnv(gym.Env):
             return reward_multi_objective_single_T_a_exp8
         elif reward_type == "multi_objective_single_T_a_exp811":
             return reward_multi_objective_single_T_a_exp811
+        elif reward_type == "multi_objective_single_T_a_exp812":
+            return reward_multi_objective_single_T_a_exp812
+        elif reward_type == "multi_objective_single_T_a_exp821":
+            return reward_multi_objective_single_T_a_exp821
+        elif reward_type == "multi_objective_single_T_a_exp822":
+            return reward_multi_objective_single_T_a_exp822
+        elif reward_type == "multi_objective_single_T_a_exp831":
+            return reward_multi_objective_single_T_a_exp831
+        
         else:
             raise ValueError("没有对应的奖励函数")
 
@@ -2459,6 +2653,7 @@ class IEMEnv(gym.Env):
             t=SpingUp_time,
             mxstep=300,
         )
+        
         #####################################
         # 对应的是 2016 年的初始数据，2016	1.064859411	859.6220675	132.4912636	1256.997825	0.471187383	15.83579504	2.436276166	13.39951888	47.50738509	50.312
         self.state = np.array(ode_solutions[-1], dtype=np.float64) 
@@ -2489,7 +2684,6 @@ class IEMEnv(gym.Env):
             self.state[8] = self.state[8]
             self.state[9] = self.state[9]
         
-
         # 增加手动设置初始值
         if start_state is not None:
             self.state = start_state
@@ -2711,37 +2905,37 @@ class IEMEnv(gym.Env):
         
         # 根据目前的 apply_action_iseec_case_one 种类来赋值
         if action_numpy == 0:
-            return 0, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+            return 0, "SocialResponseTime_speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default" # self.dE22_dt_drl = 6.08为加速 
         elif action_numpy == 1:
-            return 1, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+            return 1, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
         elif action_numpy == 2:
             return 2, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
         elif action_numpy == 3:
-            return 3, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+            return 3, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
         elif action_numpy == 4:
-            return 4, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            return 4, "SocialResponseTime_speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
         elif action_numpy == 5:
-            return 5, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            return 5, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
         elif action_numpy == 6:
             return 6, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
         elif action_numpy == 7:
-            return 7, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+            return 7, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
         elif action_numpy == 8:
             return 8, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
         elif action_numpy == 9:
-            return 9, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+            return 9, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
         elif action_numpy == 10:
             return 10, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
         elif action_numpy == 11:
-            return 11, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+            return 11, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
         elif action_numpy == 12:
             return 12, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action_numpy == 13:
-            return 13, "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return 13, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action_numpy == 14:
             return 14, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action_numpy == 15:
-            return 15, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return 15, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         else:
             raise ValueError("没有对应的 action")
          
@@ -2751,6 +2945,8 @@ class IEMEnv(gym.Env):
         # 方式 2 ，过程中多个绘制
         time = self.state_history["time"]
         temp = self.state_history["T_a"]
+        C_a = self.state_history["C_a"]
+
         action = self.state_history["action"]
         reward = self.state_history["reward"]
         
@@ -2759,31 +2955,42 @@ class IEMEnv(gym.Env):
         if not hasattr(self, 'fig'):
             # 首次调用时创建图形
             plt.ion()  # 打开交互模式
-            fig, axs = plt.subplots(3, 1, figsize=(20, 10))
+            fig, axs = plt.subplots(4, 1, figsize=(20, 10)) # 直接多交互绘制一个变量
 
         # 左上角绘制 state
         # TODO: 多目标协同，最上面可以放入多个 state
         axs[0].set_title("Atmospheric Temperature Over Time")
         axs[0].plot(time, temp, "r-", linewidth=2, label="Temperature")
+        # 绘制其中的参考线
+        axs[0].axhline(y=1.5, color='k', linestyle='--', linewidth=1)
         axs[0].set_xlabel("Time")
         axs[0].set_ylabel("Temperature")
         axs[0].legend()
         axs[0].grid(True)
-
-        # 左下角绘制 action
-        axs[1].set_title("Actions Over Time")
-        axs[1].scatter(time, action)  # Use scatter to visualize actions
+        
+        axs[1].set_title("atmospheric carbon Over Time")
+        axs[1].plot(time, C_a, "r-", linewidth=2, label="Carbon")
+        # 绘制其中的参考线
+        axs[1].axhline(y=945, color='k', linestyle='--', linewidth=1)
         axs[1].set_xlabel("Time")
-        axs[1].set_ylabel("Action")
+        axs[1].set_ylabel("Carbon")
+        axs[1].legend()
         axs[1].grid(True)
 
-        # 右边绘制 step_reward
-        axs[2].set_title("Step Reward Over Time")
-        axs[2].plot(time, reward, "g-", linewidth=2, label="Reward")
+        # 左下角绘制 action
+        axs[2].set_title("Actions Over Time")
+        axs[2].scatter(time, action)  # Use scatter to visualize actions
         axs[2].set_xlabel("Time")
-        axs[2].set_ylabel("Reward")
-        axs[2].legend()
+        axs[2].set_ylabel("Action")
         axs[2].grid(True)
+
+        # 右边绘制 step_reward
+        axs[3].set_title("Step Reward Over Time")
+        axs[3].plot(time, reward, "g-", linewidth=2, label="Reward")
+        axs[3].set_xlabel("Time")
+        axs[3].set_ylabel("Reward")
+        axs[3].legend()
+        axs[3].grid(True)
 
         # # 隐藏右下角的子图
         # axs[1, 1].axis("off")
@@ -2791,7 +2998,8 @@ class IEMEnv(gym.Env):
         plt.tight_layout()
     
         # 使用 pause 来更新图形
-        plt.pause(1)  # 暂停一小段时间来更新图形
+        plt.pause(10)  # 暂停一小段时间来更新图形
+        # plt.show() # 一直停留
 
         # # 清除所有子图但保持窗口
         # for ax in axs:
