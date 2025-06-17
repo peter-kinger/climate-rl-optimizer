@@ -31,16 +31,23 @@ import random
 
 
 class IEMEnv(gym.Env):
-    def __init__(self, reward_type=None, seed=None, control_start_year=2017, render_mode_diy =None, **kwargs):
+    def __init__(
+        self,
+        reward_type=None,
+        seed=None,
+        control_start_year=2017,
+        render_mode_diy=None,
+        **kwargs
+    ):
         super(IEMEnv, self).__init__()
 
         # 1. 模型基础设置（只需要初始化一次的常量）
         self.simulate_time()  # 时间相关
         self.inititalize_parameters()  # 物理参数
         self.load_data()  # 外部数据
-        
+
         # 设置如果 seed 不为 None 时候
-        
+
         if seed is not None:
             self.seed = seed
             # 设置随机种子
@@ -52,7 +59,7 @@ class IEMEnv(gym.Env):
         # 设置一个 4维的 离散空间，每个维度有 2 个离散值
         # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
         self.action_space = spaces.Discrete(16)
-        
+
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
         )
@@ -66,9 +73,9 @@ class IEMEnv(gym.Env):
 
         # 模拟开始时间
         self.control_start_year = control_start_year  # TODO
-        
+
         self.render_mode_diy = render_mode_diy
-        
+
         self.reward = 0
 
         # run information in a dictionary
@@ -80,7 +87,7 @@ class IEMEnv(gym.Env):
             "episodes": 0,
             #  'final_point': []
         }
-        
+
         # 5.记录过程可视化的部分
         self.state_history = {  # 每次只记录当前 episode 的信息
             "time": [],
@@ -98,18 +105,17 @@ class IEMEnv(gym.Env):
             "action": [],
             "action_all_dim": [],
         }
-        
-        
+
     def _set_seed(self, seed):
         """设置所有随机数生成器的种子"""
         # Python 内置 random
         random.seed(seed)
-        
+
         # NumPy 随机数生成器
         np.random.seed(seed)
         # 设置 numpy 的随机数生成器为确定性模式
         np.random.RandomState(seed)
-        
+
         # PyTorch 随机数生成器
         torch.manual_seed(seed)
         if torch.cuda.is_available():
@@ -159,7 +165,7 @@ class IEMEnv(gym.Env):
     def inititalize_parameters(self):
         """初始化模型中的参数"""
 
-        # -------- 气候相关参数 --------  
+        # -------- 气候相关参数 --------
         self.CO2eff = 5.35  # CO2 辐射强迫强度 (W/m^2 per doubling of CO2)
         self.lamb = 1 / 0.8  # 气候反馈参数 (W/m^2/K)
 
@@ -193,10 +199,10 @@ class IEMEnv(gym.Env):
         self.rho_od = self.odco2c / self.cinod  # 深层海洋碳浓度转换系数 (ppm -> Pg)
 
         ################# RL 部分的参数 ############################
-        
+
         # -------- rl done 里面训练的相关参数 --------
         # done_PB 计算部分的参数
-        self.T_a_PB_done = 1.76 # 采用了 minus 100 最极端的判断标准
+        self.T_a_PB_done = 1.76  # 采用了 minus 100 最极端的判断标准
         self.C_a_PB_done = 1000
 
         # -------- rl reward 里面训练的相关参数 --------
@@ -207,7 +213,7 @@ class IEMEnv(gym.Env):
 
         self.PB = np.array([self.T_a_PB, self.C_a_PB, self.energy_new_ratio_PB])
         self.init_state = np.array([1.095932163, 864.4223529, 0.14])
-        
+
         # reward_threedimension_function 设定的 norm 碳临界参数
         self.T_critical = 1.5  # 临界温度 (K)
         self.T_target = 1.5  # 目标温度 (K)
@@ -387,16 +393,18 @@ class IEMEnv(gym.Env):
                 * self.energy_addl_B3B_EnhanceRatio[-1]
             )  # additional energy due to B3B
 
-
             # 设置如果出现 异常报错，就 Pass
             try:
                 self.energy_MYadjusted18502100_total_plus_B3B.append(
-                self.energy_MYadjusted18502100_total[int(time) - self.model_init_year]
-                + energy_addl_B3B)  # including B3B but not ACE3
+                    self.energy_MYadjusted18502100_total[
+                        int(time) - self.model_init_year
+                    ]
+                    + energy_addl_B3B
+                )  # including B3B but not ACE3
             except Exception as e:
                 self.energy_MYadjusted18502100_total_plus_B3B.append(
-                self.energy_MYadjusted18502100_total[-1]
-                + energy_addl_B3B)  # including B3B but not ACE3
+                    self.energy_MYadjusted18502100_total[-1] + energy_addl_B3B
+                )  # including B3B but not ACE3
 
         ############# ACE3 实现大气碳提取（ACE）技术的模拟 ############
         ### Aug 21 ACE   ###
@@ -593,22 +601,22 @@ class IEMEnv(gym.Env):
             ############################### 税收增加的部分 ##############################
             # TODO: 改变了 E11 的排放方式，不是直接累计计算，而是需要考虑碳税变化
             # 添加碳税政策的影响
-            self.carbon_tax_rate = 0 # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
+            self.carbon_tax_rate = 0  # 初始碳税，单位：美元/吨 CO2，可由 MDP 动作动态调整  TODO: 改变 action 可以改变的
             self.price_elasticity = (
-                - 1 # -0.3->-1
+                -1  # -0.3->-1
             )  # 假设的价格弹性，表示碳税对化石能源消费的影响程度
             self.conversion_CO2_to_energy = 0.001  # 单位转换：吨 CO2/能源单位
-            
+
             # 碳税收入（动态累积）
             # self.carbon_tax_revenue.append(self.CO2emission_actualFF[-1] * self.carbon_tax_rate)
-            
+
             # 碳税对化石燃料的需求抑制
             E11_reduction_due_to_tax = (
                 self.price_elasticity
                 * self.carbon_tax_rate
                 * self.conversion_CO2_to_energy
             )
-            
+
             ###########################################################################
 
             E11 = (
@@ -739,17 +747,17 @@ class IEMEnv(gym.Env):
         ############################################
 
         if int(time) not in self.time_count:
-            
+
             ################ DRL 管控部分 ################
             if self.taoR21_drl == 0:
                 self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0)))  # +0.6
             else:
                 self.taoR21.append(50 * np.exp(-2 * (T_a + 0.6)))
             ############################################
-            
+
             self.taoP21.append(self.taoR21[-1] / 2)
             self.taoDV21.append(0)
-            
+
             ################ DRL 管控部分 ################
             if self.taoDF21_drl == 0:
                 self.taoDF21.append(
@@ -760,7 +768,7 @@ class IEMEnv(gym.Env):
                     50 / 2 / (1 + 2 * ((T_a + 0.6) ** 2))
                 )  # X2 sensitivity test July 17, 2020
             ############################################
-            
+
             # k21=0.65*energy_MYadjusted18502100_total_plus_B3B[-1]
             self.k21.append(
                 0.65 * (self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1])
@@ -835,13 +843,14 @@ class IEMEnv(gym.Env):
         else:
             ################ DRL 管控部分 ################
             if self.dE21_dt_drl == 6.03:
-                dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[-1]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
+                dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[
+                    -1
+                ]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
             else:
                 dE21_dt = 0
             ############################################
             # dE21_dt =   0 # make this 0 to stop future growth of renewable at all
             # dE21_dt =   (1-E21/k21[-1])*E21/tao21[2015-1850]
-            
 
         # # # # # #  E22: Renewable Using New Technology
         ################ DRL 管控部分 ################
@@ -939,7 +948,9 @@ class IEMEnv(gym.Env):
         else:
             ################ DRL 管控部分 ################
             if self.dE22_dt_drl == 6.08:
-                dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[-1]
+                dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[
+                    -1
+                ]
             else:
                 dE22_dt = 0
             ############################################
@@ -999,7 +1010,7 @@ class IEMEnv(gym.Env):
     #
     def get_observation(self, next_t):
         """This is where we solve the dynamical system of equations to get the next state"""
-        
+
         ode_solutions = odeint(
             func=self.iseec_dynamics_v1_ste,
             y0=self.state,
@@ -1024,13 +1035,13 @@ class IEMEnv(gym.Env):
         # if C_a > self.C_a_PB_done or T_a > self.T_a_PB_done:
         #     over_done = True
         #     print("Outside PB!")
-        
+
         if T_a > 2.5:
             over_done = True
             print("Outside PB!")
 
         return over_done
-    
+
     def done_state_inside_2_temperature_planetary_boundaries(self):
         """Check to see if we are in a terminal state"""
         # # 还需要再执行一个时间步长才能判断是否到达边界
@@ -1064,26 +1075,26 @@ class IEMEnv(gym.Env):
         """判断当前状态是否在地球的温度边界内"""
         T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
         is_inside = True
-        if T_a > 1.5 or C_a > 945: # 根据 pb 当前值来调研得到
+        if T_a > 1.5 or C_a > 945:  # 根据 pb 当前值来调研得到
             is_inside = False
             # print("out of boundaries")
         return is_inside
-    
+
     def normalized_state_Ta(self, state=None):
         """Normalize the temperature state variable T_a"""
 
         return (state - 0) / (4 - 0)
-    
+
     def normalized_state_Ca(self, state=None):
         """Normalize the carbon state variable C_a"""
 
         return (state - 600) / (1319 - 600)
-    
+
     def normalized_state_energy_sf(self, state=None):
         """Normalize the energy state variable energy_sf"""
 
         return (state - 52.85234) / (1900 - 52.85234)
-        
+
     def get_reward_function(self, reward_type):
         """Choosing a reward function"""
         # 可以替换多种奖励类型
@@ -1098,17 +1109,16 @@ class IEMEnv(gym.Env):
             """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            if T_a > 2.5 :
-                reward = - 100
+            if T_a > 2.5:
+                reward = -100
             else:
-                reward = - np.linalg.norm(T_a - self.T_a_PB)
+                reward = -np.linalg.norm(T_a - self.T_a_PB)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
-                
+
             return reward
-        
+
         def reward_pb_temperature_init():
-            """
-            """
+            """ """
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
             # if self.done_state_inside_planetary_boundaries():
@@ -1116,12 +1126,12 @@ class IEMEnv(gym.Env):
             if T_a < 1.07:
                 reward = 0
             elif T_a < 1.5:
-                reward = - (T_a - 1.5)
+                reward = -(T_a - 1.5)
             elif T_a < 1.76:
-                reward = - 10 * (T_a - 1.5)
+                reward = -10 * (T_a - 1.5)
             else:
-                reward = - 100
-            
+                reward = -100
+
             if self.t >= 2098:
                 if T_a < 1.5:
                     reward = reward + 100
@@ -1131,51 +1141,49 @@ class IEMEnv(gym.Env):
             if self.t == 2100:
                 delta = abs(T_a - 1.5)
                 if delta <= 0.02:
-                    reward += 2000    # 准确率极高，超大激励
+                    reward += 2000  # 准确率极高，超大激励
                 elif delta <= 0.05:
-                    reward += 1000    # 准确率很高，大激励
+                    reward += 1000  # 准确率很高，大激励
                 elif delta <= 0.1:
-                    reward +=  500    # 达到合理近似，中激励
+                    reward += 500  # 达到合理近似，中激励
                 else:
-                    reward -= 1000    # 未达标，重度惩罚
+                    reward -= 1000  # 未达标，重度惩罚
 
             return reward
-               
+
         # 距离计算版本
         def reward_pb_temperature_growth():
-            """利用温度值来计算，但是加入了势能指数奖励
-            """
+            """利用温度值来计算，但是加入了势能指数奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             t = self.t
             reward = 0
-            #—— 维护“全程达标”标志 ——#
+            # —— 维护“全程达标”标志 ——#
             if T_a > 1.8:
                 self.all_below = False
 
-            #—— 实时奖励 ——#
+            # —— 实时奖励 ——#
             if T_a <= 1.5:
                 # 指数型微小惩罚
-                reward = - 0.1 * (math.exp(5 * (T_a - 1.5)) - 1.0)
+                reward = -0.1 * (math.exp(5 * (T_a - 1.5)) - 1.0)
             else:
                 # 越界线性大惩罚
-                reward = - 10 * (T_a - 1.5)
+                reward = -10 * (T_a - 1.5)
 
             # #—— 81 步时的达标奖励 ——#
             # if t == self.bonus_steps and self.all_below:
             #     reward += self.bonus_amount
-            
-                
+
             # if self.t >= 2098:
             #     if T_a < 1.5:
             #         reward = reward + 100
             #     else:
             #         reward = reward - 10
-            
+
             # 尝试线性的提示
             # —— 2. 非终期的常规误差惩罚 —— #
             # 基础惩罚 + 临终期加权
-            beta0 = 1.0     # 基础系数
-            beta1 = 9.0     # 时间加权系数，保证到 2100 年总惩罚系数为 beta0+beta1 = 10
+            beta0 = 1.0  # 基础系数
+            beta1 = 9.0  # 时间加权系数，保证到 2100 年总惩罚系数为 beta0+beta1 = 10
             # 将年份映射到 α∈[0,1]
             alpha = min(max(t, 2080), 2100) - 2080
             alpha = alpha / (2100 - 2080)
@@ -1185,17 +1193,16 @@ class IEMEnv(gym.Env):
 
             # —— 3. 终期额外正奖励 —— #
             bonus = 0.0
-            epsilon = 0.1   # 容忍误差
-            R0      = 100.0 # 完全达标时的最大奖励
+            epsilon = 0.1  # 容忍误差
+            R0 = 100.0  # 完全达标时的最大奖励
             if t >= 2099 and delta_T <= epsilon:
                 # 随 delta_T 线性衰减：delta_T=0 得 R0，delta_T=epsilon 得 0
-                bonus = R0 * (1 - delta_T/epsilon)
+                bonus = R0 * (1 - delta_T / epsilon)
 
             reward = reward + penalty + bonus
-            
-            return reward 
 
-           
+            return reward
+
         def reward_critical_ste_temperature():
             """考虑临界因素切换部分，同时计算3个维度"""
 
@@ -1205,21 +1212,23 @@ class IEMEnv(gym.Env):
             # 判断是否超过临界状态
             if T > 1.76:
                 # 超过临界状态的 reward 计算
-                reward = - 30 * (T - self.T_target) 
+                reward = -30 * (T - self.T_target)
             else:
                 # 未超过临界状态的 reward 计算
-                reward = - 10 * (T - self.T_target)
-                
+                reward = -10 * (T - self.T_target)
+
             # 检查最近10个动作是否相同
-            if all(action == self.state_history["action"][-1] for action in self.state_history["action"][-10:]): # all 是对可迭代元素进行检查
+            if all(
+                action == self.state_history["action"][-1]
+                for action in self.state_history["action"][-10:]
+            ):  # all 是对可迭代元素进行检查
                 reward -= 5  # 如果最近10个动作都相同，给予额外惩罚
-                
+
             return reward
 
-      
         def reward_time_phased_temperature():
             """基于2017-2100年的温度控制奖励函数
-            
+
             目标：
             1. 易于收敛：使用平滑的奖励信号
             2. 2058-2100年控制在1.5℃以下
@@ -1228,16 +1237,16 @@ class IEMEnv(gym.Env):
             T_a = self.state[0]  # 当前温度
             current_year = self.t
             reward = 0
-            
+
             # 1. 基础温度控制奖励（使用平滑的二次函数）
             temp_gap = T_a - self.T_a_PB
-            shaping = -50 * (temp_gap ** 2)  # 使用较小的系数避免奖励过大
-            
+            shaping = -50 * (temp_gap**2)  # 使用较小的系数避免奖励过大
+
             # 计算奖励差分
-            if hasattr(self, 'prev_shaping'):
+            if hasattr(self, "prev_shaping"):
                 reward = shaping - self.prev_shaping
             self.prev_shaping = shaping
-            
+
             # 2. 基于时期的额外奖励
             if current_year >= 2058:
                 # 2058年后更严格的温度控制
@@ -1245,74 +1254,74 @@ class IEMEnv(gym.Env):
                     reward += 20  # 达到目标给予显著正奖励
                 else:
                     reward -= 30 * (T_a - 1.5)  # 超过1.5度给予更大惩罚
-            
+
             # 3. 温度变化速率控制（2090年前）
-            if current_year < 2090 and hasattr(self, 'previous_T_a'):
+            if current_year < 2090 and hasattr(self, "previous_T_a"):
                 temp_change = abs(T_a - self.previous_T_a)
                 if temp_change < 0.05:  # 温度变化平缓
                     reward += 10
                 elif temp_change > 0.1:  # 温度变化剧烈
                     reward -= 20 * temp_change
             self.previous_T_a = T_a
-            
+
             # 4. 最终阶段奖励（2090-2100）
             if current_year >= 2090:
                 if 1.45 <= T_a <= 1.55:  # 在1.5度附近波动
                     reward += 30
                 elif T_a > 1.55:  # 温度过高给予惩罚
                     reward -= 50
-            
+
             # 5. 紧急情况处理
             if T_a > 2.0:  # 温度远超目标
                 reward -= 100
-                
+
             # 6. 最终状态额外奖励
             if current_year >= 2099:
                 if T_a <= 1.5:
                     reward += 200  # 成功完成任务
                 else:
                     reward -= 200  # 任务失败
-                    
+
             return reward
-        
+
         def reward_sparse():
             """稀疏奖励函数，只有在达到目标时才给予奖励"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             # TODO 指数靠近的变化探究
-            
+
             # reward = - 0.1
 
             # if np.linalg.norm(T_a - self.T_a_PB) < 0.01: # 0.5 和 0.1 效果都很差
             #     reward = 1
             # else:
-            #     reward = 
-            
+            #     reward =
+
             reward = 0
-            
+
             # 增加一个超过 1.5 以后的微小惩罚
             if T_a > 1.76:
-                reward = - 100 * (T_a - 1.5) # 因为超过1.5前期都有惩罚了
+                reward = -100 * (T_a - 1.5)  # 因为超过1.5前期都有惩罚了
             else:
-                reward = -  10 * (T_a - 1.5)
+                reward = -10 * (T_a - 1.5)
 
             if T_a > 2.5:
                 reward = reward - 50
-           
+
             # if self.good_sustainable_state():
             #     reward = reward + 0.1
-             
+
             if self.t >= 2099:
-                if abs(self.state[0] - 1.5) <= 0.05:   # 误差在±0.05°C 以内
-                    reward += 200.0                       # 完全达标
+                if abs(self.state[0] - 1.5) <= 0.05:  # 误差在±0.05°C 以内
+                    reward += 200.0  # 完全达标
                 elif abs(self.state[0] - 1.5) <= 0.1:
-                    reward +=  100.0                       # 次优达标
+                    reward += 100.0  # 次优达标
                 elif abs(self.state[0] - 1.5) <= 0.2:
                     reward += 10
                 else:
-                    reward -= 200.0                       # 失约惩罚
-                    
+                    reward -= 200.0  # 失约惩罚
+
             return reward
-    
+
         ############### 巴黎协定奖励函数 ###############
         # 下面是批量试验的过程
         def reward_paris_agreement():
@@ -1320,48 +1329,48 @@ class IEMEnv(gym.Env):
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
             if self.done_state_inside_planetary_boundaries():
-                reward = - 100 # 不仅是要原理，还要惩罚
+                reward = -100  # 不仅是要原理，还要惩罚
             else:
-                reward = - 1 * (self.T_a_PB - T_a ) 
-            
+                reward = -1 * (self.T_a_PB - T_a)
+
             if self.t >= 2098:
-                if T_a < 1.5: #
+                if T_a < 1.5:  #
                     reward = reward + 100
-            
+
             return reward
-    
+
         def reward_paris_agreement_time_close():
             """巴黎协定奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
-            
-            y = self.t                   # 当前年份
-            T = self.state[0]            # 当前温度 T_a
-            
+
+            y = self.t  # 当前年份
+            T = self.state[0]  # 当前温度 T_a
+
             # —— 1. 灾难惩罚：温度过高立即“破产”
             if T > 2.5:
-                return -100.0           # M_dis
-                
+                return -100.0  # M_dis
+
             # 2. 定义超阈值的加倍惩罚和时间惩罚，促使越早达到目标且降低
             P_over = max(T - 1.5, 0.0)
-            
+
             y0, yc = 2016, 2030
             gamma = 1
-            
+
             if y0 <= y < yc:
-                w = 1.0 + gamma * (y - y0) / (yc - y0) # 提示时间变化需要加速调整
+                w = 1.0 + gamma * (y - y0) / (yc - y0)  # 提示时间变化需要加速调整
             else:
                 w = 1.0
 
             # —— 3. 分段主体
             if y < yc:
                 # 2030年前：按加权惩罚超阈值
-                return - w * P_over
-            
+                return -w * P_over
+
             elif y < 2098:
                 # 2030–2100：常规惩罚
-                return - 1.0 * P_over
-            
+                return -1.0 * P_over
+
             else:
                 # 终期阶段：最终评估
                 if abs(T - 1.5) <= 0.05:
@@ -1372,9 +1381,9 @@ class IEMEnv(gym.Env):
                     reward = 100.0  # 部分成功
                 else:
                     reward = -100.0  # 失败惩罚
-                
+
             return reward
-        
+
         ################# ays copan 基本类型 reward 考虑 ##################
         def reward_desirable_region_renewable():
             """偏激主义的代表，只关注可再生能源
@@ -1405,78 +1414,76 @@ class IEMEnv(gym.Env):
 
             return reward
 
-
         def reward_paris_agreement_time():
             """基于时间阶段的多维度奖励函数
             注意里面参照于巴黎协定，同时对于特殊情况也进行考虑，
             由简到繁
             """
-            
+
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             current_year = self.t
-            
+
             if current_year < 2030:
-                reward = - (T_a - 1.5)  
-                
+                reward = -(T_a - 1.5)
+
                 if C_a < 920:
                     reward = reward + 10
-                    
-                if C_a < 307: # 根据 巴黎协定的 8.6% 计算得到的
+
+                if C_a < 307:  # 根据 巴黎协定的 8.6% 计算得到的
                     reward = reward + 100
-                
+
             elif current_year >= 2030 and current_year <= 2050:
-                reward = - 5 * (T_a - 1.5)  
-                
+                reward = -5 * (T_a - 1.5)
+
                 if T_a < 1.5:
                     reward = reward + 10
-                    
+
                 if C_a < 920:
                     reward = reward + 10
-                    
+
             elif current_year >= 2050:
-                reward = - 10 * (T_a - 1.5)  
-                
+                reward = -10 * (T_a - 1.5)
+
                 if T_a < 1.5:
                     reward = reward + 50
-                    
+
                 if C_a < 920:
                     reward = reward + 50
-                    
+
             # elif current_year >= 2098:
             #     if T_a < 1.5:
             #         reward = reward + 100
             #     else:
             #         reward = reward - 100
-            
+
             elif current_year >= 2090:
                 delta = abs(T_a - 1.5)
                 # 方案 A：阈值奖励
                 if delta <= 0.05:
-                    reward += 500   # 完全精准奖励
+                    reward += 500  # 完全精准奖励
                 elif delta <= 0.10:
-                    reward +=  200   # 次优精准奖励
+                    reward += 200  # 次优精准奖励
                 elif delta <= 0.2:
                     reward += 50
                 else:
-                    reward -= 50    # 失败惩罚
-            
+                    reward -= 50  # 失败惩罚
+
             return reward
-    
+
         ########### 设置 2 ° 下的奖励函数 ###########
         def reward_2_pb_temperature():
             """2 ℃情况下的 pb 的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            if T_a > 2.5 :
-                reward = - 100
+            if T_a > 2.5:
+                reward = -100
             else:
-                reward = - np.linalg.norm(T_a - 2)
+                reward = -np.linalg.norm(T_a - 2)
                 reward = reward * 10  # TODO: 10, 100, 1000, 10000
-                
+
             return reward
-        
-        
+
         def reward_2_desirable_region_renewable():
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
@@ -1499,31 +1506,31 @@ class IEMEnv(gym.Env):
                 reward = 0.0
 
             return reward
-        
+
         def reward_simple_2_spare():
             """2 个 pb 的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
-            
+
             reward = -0.1
-            
+
             if self.done_state_inside_2_temperature_planetary_boundaries():
                 reward = reward - 10
             else:
                 reward = reward + 1
-            
+
             if self.t >= 2099:
                 if T_a < 2:
-                    reward = reward + 100 # 成功完成任务，失败了也不是很严重
-                    
-            return reward  
-        
+                    reward = reward + 100  # 成功完成任务，失败了也不是很严重
+
+            return reward
+
         def reward_simplist_most_2_spare():
             """2 个 pb 的奖励函数"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             reward = 0
             # reward -= 1
-            
+
             # 分时间段来设置达到目标的离散奖励，2030 年之前，2030-2050 年，2050 年之后，奖励不同
             if self.t < 2070:
                 if T_a < 2:
@@ -1534,390 +1541,477 @@ class IEMEnv(gym.Env):
             else:
                 if T_a < 2:
                     reward = reward + 10
-            return reward      
-        
+            return reward
+
         def reward_normal_paris_agreement_multi_objective_simulate():
             """考虑通过多维范数来计算奖励
             2. 距离度量（距离惩罚或接近奖励）
             - 考虑通过仿真收集来完成目标（仿真单独放在外部程序）
             """
             state = self.state
-            s_target = np.array([1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312])
-            s_min = np.array([1.12, 868.98, 133.735, 1266, 0.49, 0, 0, 0, 47.50739, 50.312]) # 注意：最大值和最小值不能相同，否则归一化出错
-            s_max = np.array([3.83, 1319.727, 199.563, 1861.15, 2.44, 883.97, 366.92, 13.39, 47.50739, 50.312])
-            weights = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) # 默认全都是一样
-            
-            s_2016 = np.array([1.064859395, 859.622065, 132.4912632, 1256.997827, 0.471187391, 15.83579509, 2.436276218, 13.39951888, 47.50738509, 50.312])
-       
+            s_target = np.array(
+                [1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312]
+            )
+            s_min = np.array(
+                [1.12, 868.98, 133.735, 1266, 0.49, 0, 0, 0, 47.50739, 50.312]
+            )  # 注意：最大值和最小值不能相同，否则归一化出错
+            s_max = np.array(
+                [
+                    3.83,
+                    1319.727,
+                    199.563,
+                    1861.15,
+                    2.44,
+                    883.97,
+                    366.92,
+                    13.39,
+                    47.50739,
+                    50.312,
+                ]
+            )
+            weights = np.array(
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            )  # 默认全都是一样
+
+            s_2016 = np.array(
+                [
+                    1.064859395,
+                    859.622065,
+                    132.4912632,
+                    1256.997827,
+                    0.471187391,
+                    15.83579509,
+                    2.436276218,
+                    13.39951888,
+                    47.50738509,
+                    50.312,
+                ]
+            )
+
             clipped = np.minimum(np.maximum(state, s_min), s_max)
-            epsilon = 1e-10 # 防止分母为0,这里是一个小 trick
-            
-            normed  = (clipped - s_min) / (s_max - s_min + epsilon)
+            epsilon = 1e-10  # 防止分母为0,这里是一个小 trick
+
+            normed = (clipped - s_min) / (s_max - s_min + epsilon)
             target_normed = (s_target - s_min) / (s_max - s_min + epsilon)
-            
+
             # 2) 加权差值
             diff = normed - target_normed
             weighted_diff = weights * diff
-            
+
             # 3) L2 距离并取负号
-            dist = - np.linalg.norm(weighted_diff) # TODO: 实验：正负的选择
+            dist = -np.linalg.norm(weighted_diff)  # TODO: 实验：正负的选择
             return dist
-        
+
         def reward_normal_paris_agreement_multi_objective_oneline_all():
             """考虑通过多维范数来计算奖励
             2. 距离度量（距离惩罚或接近奖励）
-            
+
             通过在线收集的方法来利用 z-score 计算，这里可以灵活切换里面的权重和计算的范式完成不同的目标
             在线数据的数据主要来自于： reset 和 step 中收集
             """
             # 1) 对每个维度计算均值和标准差
-            mu    = self.obs_history.mean(axis=0)         # shape: (10,)
+            mu = self.obs_history.mean(axis=0)  # shape: (10,)
             sigma = self.obs_history.std(axis=0, ddof=0)  # shape: (10,)
-            
+
             # 避免除以零
             sigma = np.where(sigma > 0, sigma, 1.0)
-            
+
             # 2) 对一个新的 10 维状态做 Z-score 标准化
             new_state = self.state
             state_zscore = (new_state - mu) / sigma
-            
+
             # 3) 计算归一化后的结果和归一化目标的差值
-            s_target = np.array([1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312])
+            s_target = np.array(
+                [1.5, 909, 139, 1323, 0.66, 108, 85, 13, 47.50739, 50.312]
+            )
             target_zscore = (s_target - mu) / sigma
             diff = state_zscore - target_zscore
-            
+
             # 4) 设置各维度的权重
             # TODO:可以根据不同指标的重要性设置不同的权重
-            weights = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])  # 默认权重为1
+            weights = np.array(
+                [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            )  # 默认权重为1
             # 例如，如果温度指标更重要，可以设置：
             # weights = np.array([2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-            
+
             # 5) 计算加权后的差异
             weighted_diff = diff * weights
-            
+
             # 6) 计算奖励
-            reward = - np.linalg.norm(weighted_diff)  # TODO:这里可以进行范数更改计算
-            
+            reward = -np.linalg.norm(weighted_diff)  # TODO:这里可以进行范数更改计算
+
             return reward
-            
+
         def reward_multi_objective_paris_agreement_close():
             """通过多维权重来计算奖励
             1. 线性加权（加权和标量化）
 
             input: S 更新好后的最大值最小值,现有的（考虑在 step 中进行收集）
-            """      
+            """
             pass
+
         def reward_multi_objective_paris_agreement_multi_objective_low_variable():
-            """考虑使用少数变量
-            """
+            """考虑使用少数变量"""
             pass
-        
-       
-        
+
         def reward_multi_objective_governance_exp2():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             self.state_current = np.array([T_a, C_a])
             self.state_target = np.array([2, 945])
-            
-            weights = np.array([1, 1]) # Ta Ca
-            
+
+            weights = np.array([1, 1])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
-            
+            state_current_normalized = np.array(
+                [state_current_normalized_Ta, state_current_normalized_C_a]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
-            
+
+            state_target_normalized = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             if self.inside_planetary_boundaries():
-                reward = np.linalg.norm(diff_weights) # 正负都可以，因为平方了
+                reward = np.linalg.norm(diff_weights)  # 正负都可以，因为平方了
             else:
-                reward = - 10 * np.linalg.norm(diff_weights)
-            
+                reward = -10 * np.linalg.norm(diff_weights)
+
             # TODO social foundations 的考虑
             # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
             # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
 
             # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
             # current_energy = np.array([E21, E22, E23, E24])
-            
+
             # # 检查是否有任何一个当前值小于对应基准值
             # for current, base_2017 in zip(current_energy, energy_2017):
             #     if current < base_2017:
             #         reward = - 50
             #         break
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_governance_exp3():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             self.state_current = np.array([T_a, C_a])
             self.state_target = np.array([1.5, 945])
-            
-            weights = np.array([0.6, 0.4]) # Ta Ca
-        
+
+            weights = np.array([0.6, 0.4])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
-            
+            state_current_normalized = np.array(
+                [state_current_normalized_Ta, state_current_normalized_C_a]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
-            
+
+            state_target_normalized = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             if self.inside_planetary_boundaries():
-                reward = np.linalg.norm(diff_weights) # 正负都可以，因为平方了
+                reward = np.linalg.norm(diff_weights)  # 正负都可以，因为平方了
             else:
-                reward = - 10 * np.linalg.norm(diff_weights)
-            
+                reward = -10 * np.linalg.norm(diff_weights)
+
             # TODO social foundations 的考虑
             # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
             # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
 
             # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
             # current_energy = np.array([E21, E22, E23, E24])
-            
+
             # # 检查是否有任何一个当前值小于对应基准值
             # for current, base_2017 in zip(current_energy, energy_2017):
             #     if current < base_2017:
             #         reward = - 50
             #         break
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_governance_exp4():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
+
             self.state_current = np.array([T_a, C_a])
             self.state_target = np.array([1.5, 945])
-            
-            weights = np.array([1, 1]) # Ta Ca
-            
+
+            weights = np.array([1, 1])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
-            
+            state_current_normalized = np.array(
+                [state_current_normalized_Ta, state_current_normalized_C_a]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
-            
+
+            state_target_normalized = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             reward = np.linalg.norm(diff_weights)
-            
+
             if self.inside_planetary_boundaries():
-                reward = reward # 正负都可以，因为平方了
+                reward = reward  # 正负都可以，因为平方了
             else:
-                penalty = - 10 * np.linalg.norm(diff_weights)
+                penalty = -10 * np.linalg.norm(diff_weights)
                 reward = reward + penalty
-            
+
             # TODO social foundations 的考虑
             # 2016 15.83579504	2.436276166	13.39951888	47.50738509	50.312
             # 2017 22.29895949 EJ(E21) 8.733946075 EJ (E22) 13.39951888 EJ (E23) 47.50738509 EJ (E24) 50.312 EJ (E12)
 
             # energy_2017 = np.array([22.29895949, 8.733946075, 13.39951888, 47.50738509])
             # current_energy = np.array([E21, E22, E23, E24])
-            
+
             # # 检查是否有任何一个当前值小于对应基准值
             # for current, base_2017 in zip(current_energy, energy_2017):
             #     if current < base_2017:
             #         reward = - 50
             #         break
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_governance_social_foundations_exp5():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             # 参照于 iseec 中本来的写法
             E11 = (
-            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            - E12
-            - E21
-            - E22
-            - E23
-            - E24
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
             )  # in this model set up, E terms are absoluate values
-            
+
             energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            
+
             self.state_current = np.array([T_a, C_a, energy_sf])
             self.state_target = np.array([1.5, 945, 580.934])
-            
-            weights = np.array([1, 1, 1]) # Ta Ca
-            
+
+            weights = np.array([1, 1, 1])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
-            
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
-            
+            state_current_normalized_energy_sf = self.normalized_state_energy_sf(
+                energy_sf
+            )
+
+            state_current_normalized = np.array(
+                [
+                    state_current_normalized_Ta,
+                    state_current_normalized_C_a,
+                    state_current_normalized_energy_sf,
+                ]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
-            
+            state_target_normalized_energy_sf = self.normalized_state_energy_sf(
+                self.state_target[2]
+            )
+
+            state_target_normalized = np.array(
+                [
+                    state_target_normalized_Ta,
+                    state_target_normalized_C_a,
+                    state_target_normalized_energy_sf,
+                ]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             reward = np.linalg.norm(diff_weights)
-            
+
             if self.inside_planetary_boundaries():
-                reward = reward # 正负都可以，因为平方了
+                reward = reward  # 正负都可以，因为平方了
             else:
-                penalty = - 10 * np.linalg.norm(diff_weights)
+                penalty = -10 * np.linalg.norm(diff_weights)
                 reward = reward + penalty
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_governance_random_exp6():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             # 参照于 iseec 中本来的写法
             E11 = (
-            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            - E12
-            - E21
-            - E22
-            - E23
-            - E24
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
             )  # in this model set up, E terms are absoluate values
-                   
+
             self.state_current = np.array([T_a, C_a])
             self.state_target = np.array([1.5, 945])
-            
-            weights = np.array([1, 1]) # Ta Ca
-            
+
+            weights = np.array([1, 1])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a])
-            
+
+            state_current_normalized = np.array(
+                [state_current_normalized_Ta, state_current_normalized_C_a]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a])
-            
+
+            state_target_normalized = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             reward = np.linalg.norm(diff_weights)
-            
+
             if self.inside_planetary_boundaries():
-                reward = reward # 正负都可以，因为平方了
+                reward = reward  # 正负都可以，因为平方了
             else:
-                penalty = - 10 * np.linalg.norm(diff_weights)
+                penalty = -10 * np.linalg.norm(diff_weights)
                 reward = reward + penalty
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_governance_social_foundations_random_exp7():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
             # 参照于 iseec 中本来的写法
             E11 = (
-            self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            - E12
-            - E21
-            - E22
-            - E23
-            - E24
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+                - E12
+                - E21
+                - E22
+                - E23
+                - E24
             )  # in this model set up, E terms are absoluate values
-            
+
             energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
-            
+
             self.state_current = np.array([T_a, C_a, energy_sf])
             self.state_target = np.array([1.5, 945, 580.934])
-            
-            weights = np.array([1, 1, 1]) # Ta Ca
-            
+
+            weights = np.array([1, 1, 1])  # Ta Ca
+
             # 重新对内部的变量进行归一化操作
             # 首先各部分变量
-            
+
             state_current_normalized_Ta = self.normalized_state_Ta(T_a)
             state_current_normalized_C_a = self.normalized_state_Ca(C_a)
-            state_current_normalized_energy_sf = self.normalized_state_energy_sf(energy_sf)
-            
-            state_current_normalized = np.array([state_current_normalized_Ta, state_current_normalized_C_a, state_current_normalized_energy_sf])
-            
+            state_current_normalized_energy_sf = self.normalized_state_energy_sf(
+                energy_sf
+            )
+
+            state_current_normalized = np.array(
+                [
+                    state_current_normalized_Ta,
+                    state_current_normalized_C_a,
+                    state_current_normalized_energy_sf,
+                ]
+            )
+
             state_target_normalized_Ta = self.normalized_state_Ta(self.state_target[0])
             state_target_normalized_C_a = self.normalized_state_Ca(self.state_target[1])
-            state_target_normalized_energy_sf = self.normalized_state_energy_sf(self.state_target[2])
-            
-            state_target_normalized = np.array([state_target_normalized_Ta, state_target_normalized_C_a, state_target_normalized_energy_sf])
-            
+            state_target_normalized_energy_sf = self.normalized_state_energy_sf(
+                self.state_target[2]
+            )
+
+            state_target_normalized = np.array(
+                [
+                    state_target_normalized_Ta,
+                    state_target_normalized_C_a,
+                    state_target_normalized_energy_sf,
+                ]
+            )
+
             # 权重叠加计算
-            diff_weights = weights * (state_current_normalized - state_target_normalized)
-            
+            diff_weights = weights * (
+                state_current_normalized - state_target_normalized
+            )
+
             reward = np.linalg.norm(diff_weights)
-            
+
             if self.inside_planetary_boundaries():
-                reward = reward # 正负都可以，因为平方了
+                reward = reward  # 正负都可以，因为平方了
             else:
-                penalty = - 10 * np.linalg.norm(diff_weights)
+                penalty = -10 * np.linalg.norm(diff_weights)
                 reward = reward + penalty
-            
+
             # print(f"Reward: {reward}, State: {self.state}, Target: {self.state_target}")
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp8():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.25
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -20.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -20.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -1925,36 +2019,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp811():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.25
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -10.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -10.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -1962,36 +2055,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp812():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.25
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -1999,36 +2091,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp822():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.4
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.4
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -2036,36 +2127,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp821():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.3
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.3
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t >= 2099:
@@ -2073,36 +2163,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp831():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.25
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t > 2099:
@@ -2110,36 +2199,35 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
-                
+                reward = -penalty  # 奖励为负值
+
             return reward
-        
+
         def reward_multi_objective_single_T_a_exp831():
-            """考虑使用高维的指标来对应计算
-            """
+            """考虑使用高维的指标来对应计算"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
-            T_a_reference=1.5
-            T_a_lower_bound= 1.25
-            
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
             reward = 0.0
 
             # 可以根据您的需求调整这些参数
             reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
-            penalty_scale_factor_above = 5.0 # T_a高于参考值时，距离越远惩罚越大
-            penalty_for_too_low = -5.0       # T_a低于下限时的固定惩罚
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
 
             # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
             if T_a < T_a_lower_bound and self.t > 2099:
@@ -2147,22 +2235,320 @@ class IEMEnv(gym.Env):
                 # 也可以考虑惩罚与距离下限的差值挂钩，例如：
                 # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
                 # 这里为了简洁和明确，先给一个固定大惩罚。
-                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
 
             # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
             elif T_a_lower_bound <= T_a < T_a_reference:
                 # 目标是 T_a 尽量低于 T_a_reference，且越远越好
                 # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
                 reward = (T_a_reference - T_a) * reward_scale_factor_below
-                
+
             # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
-            else: # T_a >= T_a_reference
+            else:  # T_a >= T_a_reference
                 # 惩罚与超出参考值的距离成正比
                 penalty = (T_a - T_a_reference) * penalty_scale_factor_above
-                reward = -penalty # 奖励为负值
+                reward = -penalty  # 奖励为负值
+
+            return reward
+
+        def reward_multi_objective_single_T_a_exp822():
+            """考虑使用高维的指标来对应计算"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.4
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10.0  # T_a低于参考值时，距离越远奖励越大
+            penalty_scale_factor_above = 5.0  # T_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = -5.0  # T_a低于下限时的固定惩罚
+
+            # 1. T_a 低于 T_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (T_a_lower_bound - T_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. T_a 在 T_a_lower_bound 和 T_a_reference 之间 (理想情况)
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+                reward = (T_a_reference - T_a) * reward_scale_factor_below
+
+            # 3. T_a 高于或等于 T_a_reference (允许越界，但惩罚)
+            else:  # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                penalty = (T_a - T_a_reference) * penalty_scale_factor_above
+                reward = -penalty  # 奖励为负值
+
+            return reward
+
+        def reward_multi_objective_all_energy_exp1011():
+            "tinghuamu 电脑上的实验"
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            energy_sf_reference = 580.934
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 1
+            # penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            if energy_sf < energy_sf_reference:
+                reward = penalty_for_too_low
+
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            else:
+                # 鼓励 energy_sf 比参考值越高越好
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf
+                )
+                state_target_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf_reference
+                )
+
+                cut_energy_sf = np.linalg.norm(
+                    state_target_normalized_energy_sf
+                    - state_current_normalized_energy_sf
+                )
+                reward = cut_energy_sf * reward_scale_factor_below
+
+            return reward
+
+        def reward_multi_objective_all_T_a_Ca_exp12():
+            """考虑使用高维的指标来对应计算"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            reward = 0
+
+            # 设置目标计算值、PB 值，底线值
+            state_current = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])
+            state_lower_bound = np.array([1.25, 729])
+
+            weights = np.array([1, 1])
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 100.0  # 界限惩罚值
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            # 状态归一化结果计算
+            state_current_normalized_Ta = self.normalized_state_Ta(state_current[0])
+            state_current_normalized_C_a = self.normalized_state_Ca(state_current[1])
+            # 目标归一化结果
+            state_target_normalized_Ta = self.normalized_state_Ta(state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(state_target[1])
+            # 统一范数计算结果
+            cut_all = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            ) - np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            # 权重叠加后的值
+            diff_weights = weights * cut_all
+
+            # 联合状态判断是否合理
+            if (T_a < state_lower_bound[0] and self.t >= 2099) or (
+                C_a < state_lower_bound[1] and self.t >= 2099
+            ):
+                reward = penalty_for_too_low
+                return reward
+
+            # 判断在理想边界时候尽量距离越远越好
+            elif (state_lower_bound[0] <= T_a < state_target[0]) and (
+                state_lower_bound[1] <= C_a < state_target[1]
+            ):
+                # 奖励计算
+                reward = np.linalg.norm(diff_weights) * reward_scale_factor_below
+
+            elif (T_a >= state_target[0]) or (C_a >= state_target[1]):
+                # 惩罚计算
+                penalty = np.linalg.norm(diff_weights * penalty_scale_factor_above)
+
+                reward = -penalty
+            else:
+                reward = 0  # TODO
+
+            return reward
+
+        def reward_multi_objective_single_T_a_exp861():
+
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 50.0
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_T_a = self.normalized_state_Ta(T_a)
+                state_target_normalized_T_a = self.normalized_state_Ta(T_a_reference)
+
+                cut_Ta = np.linalg.norm(
+                    state_target_normalized_T_a - state_current_normalized_T_a
+                )
+
+                reward = (cut_Ta) * reward_scale_factor_below
+
+            elif T_a >= T_a_reference:  # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                state_current_normalized_T_a = self.normalized_state_Ta(T_a)
+                state_target_normalized_T_a = self.normalized_state_Ta(T_a_reference)
+
+                cut_Ta = np.linalg.norm(
+                    state_target_normalized_T_a - state_current_normalized_T_a
+                )
+
+                penalty = cut_Ta * penalty_scale_factor_above
+
+                reward = -penalty  # 奖励为负值
+
+            return reward
+        
+        def reward_multi_objective_single_C_a_exp914():
+            """考虑使用高维的指标来对应计算
+            """
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            C_a_reference= 945
+            C_a_lower_bound= 729 # 729 gtc(action 14的极端情况)
+            
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 15.0  # C_a低于参考值时，距离越远奖励越大, 区别于 Ta 这个对应的值就大的多
+            penalty_scale_factor_above = 20.0 # C_a高于参考值时，距离越远惩罚越大
+            penalty_for_too_low = - 10.0       # C_a低于下限时的固定惩罚
+
+            # 1. C_a 低于 C_a_lower_bound 时的惩罚（仅在 2099 年及以后生效）
+            if C_a < C_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+                # 也可以考虑惩罚与距离下限的差值挂钩，例如：
+                # reward = penalty_for_too_low - (C_a_lower_bound - C_a) * some_other_penalty_factor
+                # 这里为了简洁和明确，先给一个固定大惩罚。
+                return reward # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            # 2. C_a 在 C_a_lower_bound 和 C_a_reference 之间 (理想情况)
+            elif C_a_lower_bound <= C_a < C_a_reference:
+                # 目标是 C_a 尽量低于 C_a_reference，且越远越好
+                # 因此，距离 C_a_reference 越远 (即 C_a 越小)，奖励越高。
+                
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+                state_target_normalized_C_a = self.normalized_state_Ca(C_a_reference)
+                
+                cut_Ca = np.linalg.norm(state_target_normalized_C_a - state_current_normalized_C_a)
+        
+                reward = (cut_Ca) * reward_scale_factor_below
+                
+            # 3. C_a 高于或等于 C_a_reference (允许越界，但惩罚)
+            elif C_a >= C_a_reference: # C_a >= C_a_reference
+                # 惩罚与超出参考值的距离成正比
+                state_current_normalized_C_a = self.normalized_state_Ca(C_a)
+                state_target_normalized_C_a = self.normalized_state_Ca(C_a_reference)
+                
+                cut_Ca = np.linalg.norm(state_target_normalized_C_a - state_current_normalized_C_a)
+                
+                penalty = cut_Ca * penalty_scale_factor_above
+                reward = - penalty # 奖励为负值
                 
             return reward
-         
+
+        def reward_multi_objective_all_energy_exp1011():
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            energy_sf_reference = 580.934
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 50.0
+            # penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            if energy_sf < energy_sf_reference:
+                reward = penalty_for_too_low
+
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            else:
+                # 鼓励 energy_sf 比参考值越高越好
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf
+                )
+                state_target_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf_reference
+                )
+
+                cut_energy_sf = np.linalg.norm(
+                    state_target_normalized_energy_sf
+                    - state_current_normalized_energy_sf
+                )
+                reward = cut_energy_sf * reward_scale_factor_below
+
+            return reward
+
+        def reward_multi_objective_all_energy_exp1013():
+            "tingmu 电脑上的实验"
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            energy_sf = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-1]
+            energy_sf_reference = 580.934
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 10
+            # penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            if energy_sf < energy_sf_reference:
+                reward = penalty_for_too_low
+
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            else:
+                # 鼓励 energy_sf 比参考值越高越好
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf
+                )
+                state_target_normalized_energy_sf = self.normalized_state_energy_sf(
+                    energy_sf_reference
+                )
+
+                cut_energy_sf = np.linalg.norm(
+                    state_target_normalized_energy_sf
+                    - state_current_normalized_energy_sf
+                )
+                reward = cut_energy_sf * reward_scale_factor_below
+
+            return reward
+
         # 通过选项返回函数，
         if reward_type == "pb_temperature":
             return reward_pb_temperature
@@ -2172,10 +2558,10 @@ class IEMEnv(gym.Env):
             return reward_pb_temperature_simple_gpt
         elif reward_type == "critical_ste_temperature":
             return reward_critical_ste_temperature
-        
+
         elif reward_type == "pb_temperature_growth":
             return reward_pb_temperature_growth
-        
+
         elif reward_type == "desirable_region_renewable":
             return reward_desirable_region_renewable
         elif reward_type == "simple_spare":
@@ -2208,18 +2594,18 @@ class IEMEnv(gym.Env):
             return reward_simple_2_spare
         elif reward_type == "2_simplist_most_spare":
             return reward_simplist_most_2_spare
-        
+
         elif reward_type == "paris_agreement_carracing_lunar":
             return reward_paris_agreement_carracing_lunar
-        
+
         elif reward_type == "normal_paris_agreement_multi_objective_simulate":
             return reward_normal_paris_agreement_multi_objective_simulate
         elif reward_type == "normal_paris_agreement_multi_objective_oneline_all":
             return reward_normal_paris_agreement_multi_objective_oneline_all
-        
+
         elif reward_type == "pb_temperature_init":
             return reward_pb_temperature_init
-        
+
         elif reward_type == "multi_objective_governance_exp2":
             return reward_multi_objective_governance_exp2
         elif reward_type == "multi_objective_governance_exp3":
@@ -2230,7 +2616,7 @@ class IEMEnv(gym.Env):
             return reward_multi_objective_governance_social_foundations_exp5
         elif reward_type == "multi_objective_governance_random_exp6":
             return reward_multi_objective_governance_random_exp6
-        elif reward_type == "multi_objective_governance_social_foundations_random_exp7":    
+        elif reward_type == "multi_objective_governance_social_foundations_random_exp7":
             return reward_multi_objective_governance_social_foundations_random_exp7
 
         elif reward_type == "multi_objective_single_T_a_exp8":
@@ -2245,7 +2631,20 @@ class IEMEnv(gym.Env):
             return reward_multi_objective_single_T_a_exp822
         elif reward_type == "multi_objective_single_T_a_exp831":
             return reward_multi_objective_single_T_a_exp831
+
+        elif reward_type == "multi_objective_single_T_a_exp861":
+            return reward_multi_objective_single_T_a_exp861
         
+        elif reward_type == "multi_objective_single_C_a_exp914":
+            return reward_multi_objective_single_C_a_exp914
+
+        elif reward_type == "multi_objective_all_T_a_Ca_exp12":
+            return reward_multi_objective_all_T_a_Ca_exp12
+        elif reward_type == "multi_objective_all_energy_exp1011":
+            return reward_multi_objective_all_energy_exp1011
+        elif reward_type == "multi_objective_all_energy_exp1013":
+            return reward_multi_objective_all_energy_exp1013
+
         else:
             raise ValueError("没有对应的奖励函数")
 
@@ -2269,18 +2668,17 @@ class IEMEnv(gym.Env):
 
         elif action == 3:
             self.carbon_tax_rate = 500
-            
+
         else:
             raise ValueError("没有对应的 action")
-        
-        
+
     def apply_action_iseec_case_one(self, action):
         """主要是根据原文中设置的了几个 case 来进行设计
 
         Args:
             action (_type_): _description_
         """
-        
+
         # 1. 是否加快社会响应
         # dE21_dt : 2016 时候计算得到 6.03， 不发展时候就是 0 （作用时间：2017以后）
         # dE22_dt : 2016 时候计算得到 6.08， 不发展时候就是 0 （作用时间：2017以后）
@@ -2290,9 +2688,9 @@ class IEMEnv(gym.Env):
         else:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-        
+
         # 2. 是否加快可再生能源技术扩散时间 / ACE 大气碳提取技术的启动投资
-        # 2.1 是否加快可再生能源技术扩散时间         
+        # 2.1 是否加快可再生能源技术扩散时间
         # self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0))) -》 0 / 0.6 切换
         # self.taoDF21.append(50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))) -》 0 / 0.6 切换
         # self.taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6 -》 0 / 0.6 切换
@@ -2304,7 +2702,7 @@ class IEMEnv(gym.Env):
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-        
+
         # 2.2 是否加快 ACE 大气碳提取技术的启动投资
         # taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0)) -> 0 / 0.6 切换
         # taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5)) -> 0 / 0.6 切换
@@ -2313,19 +2711,18 @@ class IEMEnv(gym.Env):
             self.taoACE_drl = 0
         else:
             self.taoACE_drl = 0.6
-        
-        
+
         # 3. 大幅增加可再生能源技术的启动投资
         # eta0_21 = 2 / 100 -> 0.1 / 1 / 2 切换, 先按照 1 / 2 来进行对比(效果明显)
-        # eta0_22 = 2 / 100 -> 0.1 / 1 / 2 切换   
+        # eta0_22 = 2 / 100 -> 0.1 / 1 / 2 切换
         if action[3] == 0:
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
         else:
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
-            
-        self.current_action = action.copy() if hasattr(action, 'copy') else action
+            self.eta0_22_drl = 2 / 100
+
+        self.current_action = action.copy() if hasattr(action, "copy") else action
 
     def apply_action_iseec_multiple(self, action):
         """主要是根据原文中设置的了几个 case 来进行设计
@@ -2334,229 +2731,231 @@ class IEMEnv(gym.Env):
         Args:
             action (_type_): _description_
         """
-    
+
         # if np.array_equal(action, np.array([0, 0, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
         if action == 0:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100 
+            self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([1, 0, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
         elif action == 1:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100 
+            self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([0, 1, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
         elif action == 2:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([1, 1, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
         elif action == 3:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 1 / 100
         # elif np.array_equal(action, np.array([0, 0, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
         elif action == 4:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([1, 0, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
         elif action == 5:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([0, 1, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
         elif action == 6:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
-            
+
         # elif np.array_equal(action, np.array([1, 1, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
         elif action == 7:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 1 / 100
             self.eta0_22_drl = 1 / 100
         # elif np.array_equal(action, np.array([0, 0, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
         elif action == 8:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([1, 0, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
         elif action == 9:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([0, 1, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
         elif action == 10:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([1, 1, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
         elif action == 11:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([0, 0, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action == 12:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([1, 0, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action == 13:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0
             self.taoDF21_drl = 0
             self.taoDV22_temp_drl = 0
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([0, 1, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action == 14:
             self.dE21_dt_drl = 6.03
             self.dE22_dt_drl = 6.08
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         # elif np.array_equal(action, np.array([1, 1, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         elif action == 15:
             self.dE21_dt_drl = 0
             self.dE22_dt_drl = 0
-            
+
             self.taoR21_drl = 0.6
             self.taoDF21_drl = 0.6
             self.taoDV22_temp_drl = 0.6
-            
+
             self.taoACE_drl = 0.6
-            
+
             self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100   
+            self.eta0_22_drl = 2 / 100
         else:
             raise ValueError("没有对应的 action")
-            
-        self.current_action = action.copy() if hasattr(action, 'copy') else action
 
-    def reset(self, use_random_reset=True, seed=None, start_state=None): # 可以单独进行设置
+        self.current_action = action.copy() if hasattr(action, "copy") else action
+
+    def reset(
+        self, use_random_reset=True, seed=None, start_state=None
+    ):  # 可以单独进行设置
         # 如果提供了随机种子，则设置随机数生成器
         if seed is not None:
             self._set_seed(seed)
-            
+
         # 初始化状态
         self.seed = seed
         self.state = np.array([0.0] * 10)  # 10个状态变量
-            
+
         # 经过基本运行后参数预热后已经长度对应了
         self.k21, self.k22, self.taoR21, self.taoP21, self.taoDV21, self.taoDF21 = (
             [],
@@ -2604,18 +3003,18 @@ class IEMEnv(gym.Env):
         ###########  关于 action 部分的重置 ###################
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
-        self.carbon_tax_rate = 0 # 保证默认的可以运行
-        
+        self.carbon_tax_rate = 0  # 保证默认的可以运行
+
         # 全用 action = 0 默认的来保证预热数据
         self.dE21_dt_drl = 6.03
         self.dE22_dt_drl = 6.08
-        
+
         self.taoR21_drl = 0
         self.taoDF21_drl = 0
         self.taoDV22_temp_drl = 0
-        
+
         self.taoACE_drl = 0
-        
+
         self.eta0_21_drl = 1 / 100
         self.eta0_22_drl = 1 / 100
 
@@ -2639,12 +3038,12 @@ class IEMEnv(gym.Env):
             ],
             dtype=np.float64,
         )
-        
+
         self.reward = 0
 
         ############ 预热的部分 #############
         SpingUp_time = np.arange(
-            self.model_init_year, self.control_start_year, self.dt # 可以计算，
+            self.model_init_year, self.control_start_year, self.dt  # 可以计算，
         )
 
         ode_solutions = odeint(
@@ -2653,23 +3052,37 @@ class IEMEnv(gym.Env):
             t=SpingUp_time,
             mxstep=300,
         )
-        
+
         #####################################
         # 对应的是 2016 年的初始数据，2016	1.064859411	859.6220675	132.4912636	1256.997825	0.471187383	15.83579504	2.436276166	13.39951888	47.50738509	50.312
-        self.state = np.array(ode_solutions[-1], dtype=np.float64) 
-        
+        self.state = np.array(ode_solutions[-1], dtype=np.float64)
+
         # 根据 bool 来考虑是否使用随机扰动
         if use_random_reset:
             # 新增随机扰动的初始状态: 方案 3 年，均匀分布
-            self.state[0] = self.state[0] + np.random.uniform(low=-0.104 * 3, high=+0.104 * 3)
-            self.state[1] = self.state[1] + np.random.uniform(low=-12.750 * 3, high=12.750 * 3)
-            self.state[2] = self.state[2] + np.random.uniform(low=-1.801 * 3, high=1.801 * 3)
-            self.state[3] = self.state[3] + np.random.uniform(low=-14.930 * 3, high=14.930 * 3)
-            self.state[4] = self.state[4] + np.random.uniform(low=-0.038 * 3, high=0.038 * 3)
-            self.state[5] = self.state[5] + np.random.uniform(low=-18.227 * 3, high=18.227 * 3)
-            self.state[6] = self.state[6] + np.random.uniform(low=-18.599 * 3, high=18.599 * 3)
-            self.state[7] = self.state[7] # 这几个量波动性不大
-            self.state[8] = self.state[8] 
+            self.state[0] = self.state[0] + np.random.uniform(
+                low=-0.104 * 3, high=+0.104 * 3
+            )
+            self.state[1] = self.state[1] + np.random.uniform(
+                low=-12.750 * 3, high=12.750 * 3
+            )
+            self.state[2] = self.state[2] + np.random.uniform(
+                low=-1.801 * 3, high=1.801 * 3
+            )
+            self.state[3] = self.state[3] + np.random.uniform(
+                low=-14.930 * 3, high=14.930 * 3
+            )
+            self.state[4] = self.state[4] + np.random.uniform(
+                low=-0.038 * 3, high=0.038 * 3
+            )
+            self.state[5] = self.state[5] + np.random.uniform(
+                low=-18.227 * 3, high=18.227 * 3
+            )
+            self.state[6] = self.state[6] + np.random.uniform(
+                low=-18.599 * 3, high=18.599 * 3
+            )
+            self.state[7] = self.state[7]  # 这几个量波动性不大
+            self.state[8] = self.state[8]
             self.state[9] = self.state[9]
         else:
             # 直接使用预热的值
@@ -2683,18 +3096,20 @@ class IEMEnv(gym.Env):
             self.state[7] = self.state[7]
             self.state[8] = self.state[8]
             self.state[9] = self.state[9]
-        
+
         # 增加手动设置初始值
         if start_state is not None:
             self.state = start_state
-         
-        self.t = self.control_start_year - 1 # 2016，管控时间还没有开始，2016 + action_2017 年 结果才是 2017 年 结果
+
+        self.t = (
+            self.control_start_year - 1
+        )  # 2016，管控时间还没有开始，2016 + action_2017 年 结果才是 2017 年 结果
 
         self.done = False
-        
+
         if self.render_mode_diy == "human" and self.t == self.control_start_year - 1:
             self.render()
-          
+
         self.prev_action = None
 
         # 记录部分
@@ -2715,11 +3130,11 @@ class IEMEnv(gym.Env):
             "action": [],
             "action_all_dim": [],
         }
-        
+
         # 添加动作历史记录
         self.action_history = []  # 用于记录最近的动作
         self.action_history_size = 10  # 记录最近10个动作
-        
+
         # Record state history - add this section
         self.state_history["time"].append(self.t)
         self.state_history["T_a"].append(self.state[0])
@@ -2732,11 +3147,11 @@ class IEMEnv(gym.Env):
         self.state_history["E23"].append(self.state[7])
         self.state_history["E24"].append(self.state[8])
         self.state_history["E12"].append(self.state[9])
-        
+
         # 这里比较特殊，因为 reset 时候 Action 是随机的，所以这里先设置一个默认的
         self.state_history["action"].append(None)
         self.state_history["reward"].append(None)
-        
+
         # 开始自定义为了 z-score 的计算添加的高维部分
         self.obs_history = []
         self.obs_history.append(self.state.copy())
@@ -2777,7 +3192,7 @@ class IEMEnv(gym.Env):
 
         # 计算奖励
         reward = self.reward_function()
-        
+
         # Record state history - add this section
         action_number_env, action_name_env = self.action2number_env(action)
         self.state_history["time"].append(self.t)
@@ -2794,18 +3209,17 @@ class IEMEnv(gym.Env):
         self.state_history["reward"].append(reward)
         self.state_history["action"].append(action_number_env)
         self.state_history["action_all_dim"].append(action)
-        
+
         # 记录总共训练的次数
-        self.data["step_idx"] += 1 # all episodes 记录的
-        
-        
+        self.data["step_idx"] += 1  # all episodes 记录的
+
         # 为了 z-score 的计算，需要记录所有的 obs
         self.obs_history.append(self.state.copy())
-        
+
         if self.render_mode_diy == "human":
             if self.data["step_idx"] % 2100 == 0:
                 self.render()
-        
+
         # 空字典代替
         truncated = False
 
@@ -2824,14 +3238,14 @@ class IEMEnv(gym.Env):
                 "E12": self.state[9],
             },
         }
-        
+
         # 计算终止
         # - 到达最大时间步长
         # - 超出地球边界
         self.done = False
         if self.t >= self.model_end_year:
             self.done = True
-            
+
         # if self.done_state_inside_planetary_boundaries():
         #     self.done = True
         # # if self.done_state_inside_2_temperature_planetary_boundaries():
@@ -2866,7 +3280,7 @@ class IEMEnv(gym.Env):
         #     return 3, "policy_3"
         # else:
         #     raise ValueError("没有对应的 action")
-        
+
         # # 根据目前的 apply_action_iseec_case_one 种类来赋值
         # if np.array_equal(action_numpy, np.array([0, 0, 0, 0])):
         #     return 0, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
@@ -2902,43 +3316,91 @@ class IEMEnv(gym.Env):
         #     return 15, "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
         # else:
         #     raise ValueError("没有对应的 action")
-        
+
         # 根据目前的 apply_action_iseec_case_one 种类来赋值
         if action_numpy == 0:
-            return 0, "SocialResponseTime_speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default" # self.dE22_dt_drl = 6.08为加速 
+            return (
+                0,
+                "SocialResponseTime_speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default",
+            )  # self.dE22_dt_drl = 6.08为加速
         elif action_numpy == 1:
-            return 1, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
+            return (
+                1,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 2:
-            return 2, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+            return (
+                2,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 3:
-            return 3, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
+            return (
+                3,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 4:
-            return 4, "SocialResponseTime_speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            return (
+                4,
+                "SocialResponseTime_speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 5:
-            return 5, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
+            return (
+                5,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 6:
-            return 6, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+            return (
+                6,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 7:
-            return 7, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
+            return (
+                7,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default",
+            )
         elif action_numpy == 8:
-            return 8, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+            return (
+                8,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 9:
-            return 9, "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
+            return (
+                9,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 10:
-            return 10, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+            return (
+                10,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 11:
-            return 11, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
+            return (
+                11,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 12:
-            return 12, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return (
+                12,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 13:
-            return 13, "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return (
+                13,
+                "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 14:
-            return 14, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return (
+                14,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed",
+            )
         elif action_numpy == 15:
-            return 15, "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
+            return (
+                15,
+                "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed",
+            )
         else:
             raise ValueError("没有对应的 action")
-         
+
     def render(self, mode="human"):
 
         # 同时绘制 多个 state 和 action 的变化
@@ -2949,29 +3411,29 @@ class IEMEnv(gym.Env):
 
         action = self.state_history["action"]
         reward = self.state_history["reward"]
-        
+
         # print(time[-1], temp[-1], action[-1], reward[-1])
 
-        if not hasattr(self, 'fig'):
+        if not hasattr(self, "fig"):
             # 首次调用时创建图形
             plt.ion()  # 打开交互模式
-            fig, axs = plt.subplots(4, 1, figsize=(20, 10)) # 直接多交互绘制一个变量
+            fig, axs = plt.subplots(4, 1, figsize=(20, 10))  # 直接多交互绘制一个变量
 
         # 左上角绘制 state
         # TODO: 多目标协同，最上面可以放入多个 state
         axs[0].set_title("Atmospheric Temperature Over Time")
         axs[0].plot(time, temp, "r-", linewidth=2, label="Temperature")
         # 绘制其中的参考线
-        axs[0].axhline(y=1.5, color='k', linestyle='--', linewidth=1)
+        axs[0].axhline(y=1.5, color="k", linestyle="--", linewidth=1)
         axs[0].set_xlabel("Time")
         axs[0].set_ylabel("Temperature")
         axs[0].legend()
         axs[0].grid(True)
-        
+
         axs[1].set_title("atmospheric carbon Over Time")
         axs[1].plot(time, C_a, "r-", linewidth=2, label="Carbon")
         # 绘制其中的参考线
-        axs[1].axhline(y=945, color='k', linestyle='--', linewidth=1)
+        axs[1].axhline(y=945, color="k", linestyle="--", linewidth=1)
         axs[1].set_xlabel("Time")
         axs[1].set_ylabel("Carbon")
         axs[1].legend()
@@ -2996,7 +3458,7 @@ class IEMEnv(gym.Env):
         # axs[1, 1].axis("off")
 
         plt.tight_layout()
-    
+
         # 使用 pause 来更新图形
         plt.pause(10)  # 暂停一小段时间来更新图形
         # plt.show() # 一直停留
@@ -3024,5 +3486,3 @@ class IEMEnv(gym.Env):
     def get_variables(self):
         """获取变量"""
         return self.data
-
-

@@ -18,7 +18,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
-import sys 
+import sys
 import os
 
 # 获取当前文件的目录
@@ -899,8 +899,8 @@ if __name__ == "__main__":
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
-    
-    # SEED = 42 # 非必要不指定      
+
+    # SEED = 42 # 非必要不指定
 
     # 利用 gym 函数检查环境
     env = IEMEnv(reward_type=custom_reward_type)
@@ -913,30 +913,182 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0])  # 设置您想要测试的固定动作
     # fixed_action = 1  # 设置您想要测试的固定动作
     # fixed_action = np.array([0, 0, 0, 0])
-    fixed_action = 0 # 0 是 default ，1是最高值，14是最低值
+    fixed_action = 0  # 0 是 default ，1是最高值，14是最低值
 
     human_action_guard = [
-        0, 0, 0, 0, 0, 0, 2, 2, 2, 2,
-        2, 2, 2, 2, 2, 2, 6, 6, 6, 6,
-        6, 6, 10, 10, 10, 10, 10, 10, 10, 10,
-        10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-        10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-        15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-        15, 15, 15, 15, 15, 15, 15, 15, 14, 14,
-        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
-        14, 14, 14, 14
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
     ]  # 10 年分割相关的动作序列
 
     human_action_radicalness = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 14, 14, 14, 14, 14,
-        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
-        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
-        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
-        14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
-        14, 14, 10, 10, 10, 10, 10, 10, 10, 10,
-        10, 10, 9, 9, 9, 9, 9, 9, 9, 9,
-        9, 9, 9, 9, 9, 9
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
     ]
 
     for episode in range(all_episode_num):  # 增加100次训练循环
@@ -956,24 +1108,24 @@ if __name__ == "__main__":
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
-            
+
             # action = fixed_action
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
             action = env.action_space.sample()
-            
+
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
             # if i % 10 == 0:
             #     env.render()
-            
+
             episode_reward += reward
             ##################################
-            
+
             if done:
                 print(f"Episode {episode} finished at step {i}")
                 env.render()
                 break
-            
+
             ############ 添加转换的部分 #########
             action_number, action_name = IEMEnv.action2number_env(action)
             total_action.append(action_number)
@@ -1016,7 +1168,7 @@ if __name__ == "__main__":
             total_state,
             total_timesteps_diy,
         )
-        
+
         save_plot_NSM_future_data(
             env,
             custom_reward_type,
