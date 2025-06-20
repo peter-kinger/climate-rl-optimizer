@@ -2378,8 +2378,222 @@ class IEMEnv(gym.Env):
                 reward = 0  # TODO
 
             return reward
+        
+        def reward_multi_objective_all_T_a_Ca_exp121_reset():
+            """考虑使用高维的指标来对应计算"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
+            reward = 0
+
+            # 设置目标计算值、PB 值，底线值
+            state_current = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])
+            state_lower_bound = np.array([1.25, 729])
+
+            weights = np.array([1, 1])
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 100.0  # 界限惩罚值
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            # 状态归一化结果计算
+            state_current_normalized_Ta = self.normalized_state_Ta(state_current[0])
+            state_current_normalized_C_a = self.normalized_state_Ca(state_current[1])
+            # 目标归一化结果
+            state_target_normalized_Ta = self.normalized_state_Ta(state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(state_target[1])
+            # 统一范数计算结果
+            cut_all = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            ) - np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            # 权重叠加后的值
+            diff_weights = weights * cut_all
+
+            # 联合状态判断是否合理
+            if (T_a < state_lower_bound[0] and self.t >= 2099) or (
+                C_a < state_lower_bound[1] and self.t >= 2099
+            ):
+                reward = penalty_for_too_low
+                return reward
+
+            # 判断在理想边界时候尽量距离越远越好
+            elif (state_lower_bound[0] <= T_a < state_target[0]) and (
+                state_lower_bound[1] <= C_a < state_target[1]
+            ):
+                # 奖励计算
+                reward = np.linalg.norm(diff_weights) * reward_scale_factor_below
+
+            elif (T_a >= state_target[0]) or (C_a >= state_target[1]):
+                # 惩罚计算
+                penalty = np.linalg.norm(diff_weights * penalty_scale_factor_above)
+
+                reward = -penalty
+            else:
+                reward = 0  # TODO
+
+            return reward
+        
+        def reward_multi_objective_all_T_a_Ca_exp121_weights_change():
+            """变动：更改了weights具体的值"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            reward = 0
+
+            # 设置目标计算值、PB 值，底线值
+            state_current = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])
+            state_lower_bound = np.array([1.25, 729])
+
+            weights = np.array([0.2, 0.8])
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 100.0  # 界限惩罚值
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            # 状态归一化结果计算
+            state_current_normalized_Ta = self.normalized_state_Ta(state_current[0])
+            state_current_normalized_C_a = self.normalized_state_Ca(state_current[1])
+            # 目标归一化结果
+            state_target_normalized_Ta = self.normalized_state_Ta(state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(state_target[1])
+            # 统一范数计算结果
+            cut_all = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            ) - np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            # 权重叠加后的值
+            diff_weights = weights * cut_all
+
+            # 联合状态判断是否合理
+            if (T_a < state_lower_bound[0] and self.t >= 2099) or (
+                C_a < state_lower_bound[1] and self.t >= 2099
+            ):
+                reward = penalty_for_too_low
+                return reward
+
+            # 判断在理想边界时候尽量距离越远越好
+            elif (state_lower_bound[0] <= T_a < state_target[0]) and (
+                state_lower_bound[1] <= C_a < state_target[1]
+            ):
+                # 奖励计算
+                reward = np.linalg.norm(diff_weights) * reward_scale_factor_below
+
+            elif (T_a >= state_target[0]) or (C_a >= state_target[1]):
+                # 惩罚计算
+                penalty = np.linalg.norm(diff_weights * penalty_scale_factor_above)
+
+                reward = -penalty
+            else:
+                reward = 0  # TODO
+
+            return reward
+        
+        def reward_multi_objective_all_T_a_Ca_exp122_weights_change_more_ta():
+            """变动：更改了weights具体的值"""
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            reward = 0
+
+            # 设置目标计算值、PB 值，底线值
+            state_current = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])
+            state_lower_bound = np.array([1.25, 729])
+
+            weights = np.array([0.8, 0.2])
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 100.0  # 界限惩罚值
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            # 状态归一化结果计算
+            state_current_normalized_Ta = self.normalized_state_Ta(state_current[0])
+            state_current_normalized_C_a = self.normalized_state_Ca(state_current[1])
+            # 目标归一化结果
+            state_target_normalized_Ta = self.normalized_state_Ta(state_target[0])
+            state_target_normalized_C_a = self.normalized_state_Ca(state_target[1])
+            # 统一范数计算结果
+            cut_all = np.array(
+                [state_target_normalized_Ta, state_target_normalized_C_a]
+            ) - np.array([state_current_normalized_Ta, state_current_normalized_C_a])
+            # 权重叠加后的值
+            diff_weights = weights * cut_all
+
+            # 联合状态判断是否合理
+            if (T_a < state_lower_bound[0] and self.t >= 2099) or (
+                C_a < state_lower_bound[1] and self.t >= 2099
+            ):
+                reward = penalty_for_too_low
+                return reward
+
+            # 判断在理想边界时候尽量距离越远越好
+            elif (state_lower_bound[0] <= T_a < state_target[0]) and (
+                state_lower_bound[1] <= C_a < state_target[1]
+            ):
+                # 奖励计算
+                reward = np.linalg.norm(diff_weights) * reward_scale_factor_below
+
+            elif (T_a >= state_target[0]) or (C_a >= state_target[1]):
+                # 惩罚计算
+                penalty = np.linalg.norm(diff_weights * penalty_scale_factor_above)
+
+                reward = -penalty
+            else:
+                reward = 0  # TODO
+
+            return reward
+    
         def reward_multi_objective_single_T_a_exp861():
+
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            T_a_reference = 1.5
+            T_a_lower_bound = 1.25
+
+            reward = 0.0
+
+            # 可以根据您的需求调整这些参数
+            reward_scale_factor_below = 50.0
+            penalty_scale_factor_above = 20.0
+            penalty_for_too_low = -10.0
+
+            if T_a < T_a_lower_bound and self.t >= 2099:
+                reward = penalty_for_too_low
+
+                return reward  # 如果太低了，直接返回惩罚，不考虑其他情况
+
+            elif T_a_lower_bound <= T_a < T_a_reference:
+                # 目标是 T_a 尽量低于 T_a_reference，且越远越好
+                # 因此，距离 T_a_reference 越远 (即 T_a 越小)，奖励越高。
+
+                # 在统一计算差值时候需要进行归一化
+                state_current_normalized_T_a = self.normalized_state_Ta(T_a)
+                state_target_normalized_T_a = self.normalized_state_Ta(T_a_reference)
+
+                cut_Ta = np.linalg.norm(
+                    state_target_normalized_T_a - state_current_normalized_T_a
+                )
+
+                reward = (cut_Ta) * reward_scale_factor_below
+
+            elif T_a >= T_a_reference:  # T_a >= T_a_reference
+                # 惩罚与超出参考值的距离成正比
+                state_current_normalized_T_a = self.normalized_state_Ta(T_a)
+                state_target_normalized_T_a = self.normalized_state_Ta(T_a_reference)
+
+                cut_Ta = np.linalg.norm(
+                    state_target_normalized_T_a - state_current_normalized_T_a
+                )
+
+                penalty = cut_Ta * penalty_scale_factor_above
+
+                reward = -penalty  # 奖励为负值
+
+            return reward
+        
+        def reward_multi_objective_single_T_a_exp8611_reset():
+            # 对于之前基础的 exp8611 的基础增加 reset 固定的功能设置
 
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
 
@@ -2634,12 +2848,21 @@ class IEMEnv(gym.Env):
 
         elif reward_type == "multi_objective_single_T_a_exp861":
             return reward_multi_objective_single_T_a_exp861
+        elif reward_type == "multi_objective_single_T_a_exp8611_reset":
+            return reward_multi_objective_single_T_a_exp8611_reset
         
         elif reward_type == "multi_objective_single_C_a_exp914":
             return reward_multi_objective_single_C_a_exp914
 
         elif reward_type == "multi_objective_all_T_a_Ca_exp12":
             return reward_multi_objective_all_T_a_Ca_exp12
+        elif reward_type == "multi_objective_all_T_a_Ca_exp121_reset":
+            return reward_multi_objective_all_T_a_Ca_exp121_reset
+        elif reward_type == "multi_objective_all_T_a_Ca_exp121_weights_change":
+            return reward_multi_objective_all_T_a_Ca_exp121_weights_change
+        elif reward_type == "multi_objective_all_T_a_Ca_exp122_weights_change_more_ta":
+            return reward_multi_objective_all_T_a_Ca_exp122_weights_change_more_ta
+        
         elif reward_type == "multi_objective_all_energy_exp1011":
             return reward_multi_objective_all_energy_exp1011
         elif reward_type == "multi_objective_all_energy_exp1013":

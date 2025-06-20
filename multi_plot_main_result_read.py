@@ -354,11 +354,11 @@ if __name__ == "__main__":
     # 前 3 列是 x,y,z，第 7 列是 action，就这样调用
 
     # optinal： 绘制单个算法情况
-    # fig, ax3d = plot_colored_trajectory(f'supplyment/save_future_data/exp914_DQN_episode_1_results_20250617_173316.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)
+    # fig, ax3d = plot_colored_trajectory(f'supplyment/save_future_data/exp122_weights82_DQN_episode_1_results_20250619_204927.csv',coord_cols=('T_a', 'C_a', 'E21'), action_col=-3)
 
     # # # optinal： 绘制多个算法情况
     fig, ax3d = plot_colored_trajectory(
-        f"supplyment/save_future_data/exp914_DQN_episode_1_results_20250617_173316.csv",
+        f"supplyment/save_future_data/exp122_weights82_DQN_episode_1_results_20250619_204927.csv",
         coord_cols=("T_a", "C_a", "E21"),
         action_col=-3,
         colour="blue",
