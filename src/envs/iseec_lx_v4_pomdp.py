@@ -1,12 +1,13 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   iseec_lx.py
-@Time    :   2024/11/19 22:06:04
+@Time    :   2025/06/20 22:06:04
 @Author  :   Peter_kinger 
 @Version :   1.0
 @Contact :   peter_3s@163.com
-@revision_description: add the compoenet of the period and the revise the scenario of cmip6 ssp 
+@revision_description: 重新对于 IEMEnv 进行封装，增加了 POMDP 的部分，详见附录
 """
+
 
 # here put the import lib
 import gymnasium as gym
@@ -18,18 +19,13 @@ from scipy.integrate import odeint
 import scipy.io
 from matplotlib.gridspec import GridSpec
 import math
-
 import numpy as np
 from IPython.display import clear_output
 import matplotlib.pyplot as plt
-
-
 from stable_baselines3.common.env_checker import check_env
-
 import torch
 import random
-
-
+ 
 class IEMEnv(gym.Env):
     def __init__(
         self,
@@ -56,7 +52,7 @@ class IEMEnv(gym.Env):
         # 2. gym环境设置（只需要初始化一次）
         # self.action_space = spaces.MultiDiscrete([2, 2])
         # self.action_space = spaces.Discrete(4)
-        # 设置一个 4维的 离散空间，每个维度有 2 个离散值
+        # 设置一个 4 维的 离散空间，每个维度有 2 个离散值
         # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
         self.action_space = spaces.Discrete(16)
 
