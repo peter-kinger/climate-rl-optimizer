@@ -33,6 +33,7 @@ class IEMEnv(gym.Env):
         seed=None,
         control_start_year=2017,
         render_mode_diy=None,
+        pomdp_state_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         **kwargs
     ):
         super(IEMEnv, self).__init__()
@@ -56,8 +57,11 @@ class IEMEnv(gym.Env):
         # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
         self.action_space = spaces.Discrete(16)
 
+        # 增加 POMDP 的部分
+        self.agent_state_indices = pomdp_state_indices # [0, 2, 4, 5, 7]，只让 agent 观测这5个维度
+        
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
+            low=-np.inf, high=np.inf, shape=(len(self.agent_state_indices),), dtype=np.float64
         )
 
         # 3. 奖励设置
@@ -1001,9 +1005,20 @@ class IEMEnv(gym.Env):
         )
 
     #################  gym 环境本身的组件都放在后面 #################
-    #
-    #
-    #
+    
+    def _get_obs(self):
+        """"增加对于 POMDP 的部分观测返回"""
+         
+        # TODO: 增加 agent 观测值状态的组合，这里可以选择复杂计算后的结果
+        # 类似于 
+        # obs1 = T_a / (C_a + 1e-6)
+        # obs2 = np.log(E21 + 1)
+        # obs3 = T_a * E21
+        # obs4 = C_a ** 2
+        # obs5 = np.exp(-T_a)
+        # np.array([obs1, obs2, obs3, obs4, obs5])
+        return self.state[self.agent_state_indices]
+        
     def get_observation(self, next_t):
         """This is where we solve the dynamical system of equations to get the next state"""
 
@@ -1013,9 +1028,9 @@ class IEMEnv(gym.Env):
             t=[self.t, next_t],
             mxstep=50000,
         ) # 获取交互的部分
-
+       
         # 确保返回的是 numpy 数组(也就是环境的子集，但实际上这里有大量的转换空间可以操作)
-        return np.array(ode_solutions[-1], dtype=np.float64)
+        return np.array(ode_solutions[-1], dtype=np.float64) 
 
     def done_state_inside_planetary_boundaries(self):
         """Check to see if we are in a terminal state"""
@@ -3376,7 +3391,7 @@ class IEMEnv(gym.Env):
         self.obs_history.append(self.state.copy())
 
         # 根据新版 gym 的要求，reset 方法需要返回 observation 和 info
-        return self.state, {}
+        return self._get_obs(), {} # 增加对 state PO 返回
 
     def step(self, action):
         """
@@ -3404,7 +3419,6 @@ class IEMEnv(gym.Env):
         # self.apply_action_iseec_case_one(action)
 
         self.state = self.get_observation(next_t)  # 每次求解的 state 都是下一次
-        ##########################################
 
         # 执行补充过程结束即可
         self.t = next_t
@@ -3471,7 +3485,7 @@ class IEMEnv(gym.Env):
         #     self.done = True
 
         # TODO: 考虑是否需要归一化: trafo_state=self.normalize_state(self.state)
-        return self.state, reward, self.done, truncated, info
+        return self._get_obs(), reward, self.done, truncated, info
 
     @staticmethod
     def action2number_env(action_numpy):
