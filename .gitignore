@@ -133,9 +133,10 @@ dmypy.json
 # Temporary files
 tmp
 
-# only to ignore the files in the data document
+# only to ignore the files in the data document(peter_kinger write)
 logs/*
 output/*
 model/*
 250413_climate-rl-optimizer.zip
 Archives/250407 修改 reward 之前保存结果
+*.csv 

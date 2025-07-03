@@ -28,7 +28,7 @@ def plot_hairy_lines(hairy_lines_path=None, coord_cols=None, fig=None, axes=None
     """
     # 循环读取 data\without_rl 里面的 csv 文件，并进行3维变量绘制
     if hairy_lines_path is None:
-        hairy_lines_path = "data/without_rl_100"
+        hairy_lines_path = "data/mix"
     if coord_cols is None:
         coord_cols = ("T_a", "C_a", "E21")
 
@@ -53,7 +53,7 @@ def plot_hairy_lines(hairy_lines_path=None, coord_cols=None, fig=None, axes=None
                 df[coord_cols[1]],
                 df[coord_cols[2]],
                 color=colorbottom if df["T_a"].iloc[-1] > 1.5 else colortop,
-                linewidth=1,
+                linewidth=1.2,
                 alpha=0.08,
             )
 
@@ -70,7 +70,7 @@ def plot_compare_lines(compare_lines_path=None, coord_cols=None, fig=None, axes=
     """
 
     if compare_lines_path is None:
-        compare_lines_path = "data\iseec_run_data"
+        compare_lines_path = "data\hair_model_exp12_82_results_1000"
 
     if coord_cols is None:
         coord_cols = ("T_a", "C_a", "E21")
@@ -229,16 +229,16 @@ def plot_colored_trajectory(
     Z = np.linspace(Z_min, Z_max, 20)
     X, Z = np.meshgrid(X, Z)
     Y = np.full_like(X, Y_wall)
-    ax.plot_surface(X, Y, Z, color="gray", alpha=0.1)
+    ax.plot_surface(X, Y, Z, color="yellow", alpha=0.2)
 
     # 画 T_a=1.5 的墙（X轴墙）
     X_wall = 1.5
     Y_min, Y_max = ax.get_ylim()
-    Z2 = np.linspace(Z_min, Z_max, 20)
+    Z2 = np.linspace(25, Z_max, 20)
     Y2 = np.linspace(Y_min, 945, 20)  # 上边界正好到945
     Y2, Z2 = np.meshgrid(Y2, Z2)
     X2 = np.full_like(Y2, X_wall)
-    ax.plot_surface(X2, Y2, Z2, color="gray", alpha=0.1)
+    ax.plot_surface(X2, Y2, Z2, color="blue", alpha=0.3)
 
     # # 增加一个 T_a = 2 的墙
     # X_wall_2 = 2.0
@@ -249,15 +249,15 @@ def plot_colored_trajectory(
     # X2_2 = np.full_like(Y2, X_wall_2)
     # ax.plot_surface(X2_2, Y2, Z2, color='gray', alpha=0.1)
 
-    # # 画 E21 的墙（Z轴墙）
-    # Z_wall = 25
-    # X_min, X_max = ax.get_xlim()
-    # Y_min, Y_max = ax.get_ylim()
-    # X3 = np.linspace(X_min, X_max, 20)
-    # Y3 = np.linspace(Y_min, Y_max, 20)
-    # X3, Y3 = np.meshgrid(X3, Y3)
-    # Z3 = np.full_like(X3, Z_wall)
-    # ax.plot_surface(X3, Y3, Z3, color='gray', alpha=0.1)
+    # 画 E21 的墙（Z轴墙）
+    Z_wall = 25
+    X_min, X_max = ax.get_xlim()
+    Y_min, Y_max = ax.get_ylim()
+    X3 = np.linspace(X_min, 1.5, 20)
+    Y3 = np.linspace(725, 945, 20)
+    X3, Y3 = np.meshgrid(X3, Y3)
+    Z3 = np.full_like(X3, Z_wall)
+    ax.plot_surface(X3, Y3, Z3, color='orange', alpha=0.2)
 
     # 增加对 action 的图例
     unique_actions = np.unique(actions)
@@ -274,10 +274,11 @@ def plot_colored_trajectory(
 
     # 轨迹颜色与算法的图例
     color_desc = {
-        "green": "example case1",
-        "blue": "example case2",
-        "red": "example case3",
-        "orange": "example case4",
+        # "green": "multi-objective reward type 1",
+        "blue": "multi-objective reward type 1",
+        "pink": "Temperature reward type ",
+        "red": "ecological reward type ",
+        "orange": "energy reward type 4",
     }
     color_handles = [
         plt.Line2D([0], [0], color=color, lw=3, label=desc)
@@ -294,17 +295,15 @@ def plot_colored_trajectory(
     ]
 
     # 合并所有图例元素
-    all_handles = legend_elements  # color_handles + point_handles + legend_elements
+    all_handles = legend_elements + point_handles  # color_handles + point_handles + legend_elements
 
     # 修改这里的图例处理方式
-    # ax.legend(handles=all_handles, loc='upper right')
+    ax.legend(handles=all_handles, loc='upper right')
 
     # 5) 格式化
-    ax.set_xlabel(
-        "atmospheric temperature" + " " + coord_cols[0] + "[℃]"
-    )  # 直接使用列名
+    ax.set_xlabel("atmospheric temperature" + " " + coord_cols[0] + "[℃]")  # 直接使用列名
     ax.set_ylabel("atmospheric concentration" + " " + coord_cols[1] + "[gtc]")
-    ax.set_zlabel("existing  renewable technologies" + " " + r"$E_{21}$" + "[EJ]")
+    ax.set_zlabel("existing renewable energy" + " " + r"$E_{21}$" + "[EJ]")
 
     plt.title("3D Trajectory Colored by Action")
 
@@ -320,15 +319,14 @@ def plot_colored_trajectory(
     # optional: 右侧单独的图例说明
     # 增加动作意义的单独说明
     action_desc = {  # 只说明加快的部分
-        2: "Accelerate the development of renewable energy",
-        4: "Speed the progress of ACE",
-        6: "renewable energy + ACE",
-        12: "ACE + Accelerate the investment of renewable Energy",
-        15: "all actions",
+        1: "Default",
+        4: "Speed the progress of social response time + ACE",
+        8: "Accelerate the investment of renewable energy",
+        14: "Accelerate the investment of renewable energy + social response time + ACE",
     }
     desc_lines = [f"{k}: {v}" for k, v in action_desc.items()]
     desc_text = "\n".join(desc_lines)
-    plt.subplots_adjust(right=0.75)  # 给右侧留空间
+    # plt.subplots_adjust(right=0.75)  # 给右侧留空间
     fig.text(
         0.78,
         0.5,
@@ -340,14 +338,13 @@ def plot_colored_trajectory(
     )
 
     # optinal: 在基础的轨迹绘制上增加其他部分的绘制，启用方式：直接取消注释即可
-    # plot_hairy_lines(fig=fig, axes=ax)
+    plot_hairy_lines(fig=fig, axes=ax)
     # plot_compare_lines(fig=fig, axes=ax)
 
     ax.grid(False)  # 取消网格显示
     # plt.show() #
 
     return fig, ax
-
 
 if __name__ == "__main__":
     # 举例：如果你的文件叫 trajectories.csv，
@@ -361,24 +358,36 @@ if __name__ == "__main__":
         f"supplyment/save_future_data/exp122_weights82_DQN_episode_1_results_20250619_204927.csv",
         coord_cols=("T_a", "C_a", "E21"),
         action_col=-3,
-        colour="blue",
     )
+    
+    # plot_colored_trajectory(
+    #     f"supplyment/save_future_data/exp122_weights82_DQN_episode_1_results_20250619_204927.csv",
+    #     coord_cols=("T_a", "C_a", "E21"),
+    #     action_col=-3,
+    #     fig=fig,
+    #     axes=ax3d,
+    #     colour="green",
+    # )
 
     # # # 不同的 reward 结果绘制
-    plot_colored_trajectory(
-        f"supplyment/save_future_data/exp861_episode_1_results_20250604_094734.csv",
-        coord_cols=("T_a", "C_a", "E21"),
-        action_col=-3,
-        fig=fig,
-        axes=ax3d,
-        colour="green",
-    )
+    # plot_colored_trajectory(
+    #     f"supplyment/save_future_data/exp861_episode_1_results_20250604_094734.csv",
+    #     coord_cols=("T_a", "C_a", "E21"),
+    #     action_col=-3,
+    #     fig=fig,
+    #     axes=ax3d,
+    #     colour="pink",
+    # )
 
-    # # # 不同算法继续在一个图坐标上绘制
-    # plot_colored_trajectory(f'supplyment/save_future_data/exp822_DQN_episode_1_results_20250606_142557.csv', coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='green')
+    # # # # 不同算法继续在一个图坐标上绘制
+    # plot_colored_trajectory(f'supplyment/save_future_data/exp914_DQN_episode_1_results_20250617_173316.csv', coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='red')
+
+    # plot_colored_trajectory(f'supplyment/save_future_data/exp1013_DQN_episode_1_results_20250606_161916.csv', coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='orange')
 
     # plot_colored_trajectory(f"output/multi_objective_single_T_a_exp8/rl_model_fixed_action_hariy_network_Netxxx_no_debug_plot_100/episode_0_results_20250527_195522.csv", coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='red')
 
     # plot_colored_trajectory(f"output/multi_objective_governance_social_foundations_exp5/rl_model_DQN_network_dict_pi_vf_default_600000/episode_0_results_20250520_212556.csv", coord_cols=('T_a', 'C_a', 'E21'), action_col=-3,fig=fig,axes=ax3d,colour='orange')
-
+    
     plt.show()
+
+

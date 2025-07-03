@@ -893,17 +893,18 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "multi_objective_single_T_a_exp8"
-    rl_model_name = "fixed_action_hariy"
+    custom_reward_type = "multi_objective_all_T_a_Ca_exp122_weights_change_more_ta"
+    # rl_model_name = "model_exp12_82_action_hariy_lines"
+    rl_model_name = "fixed_action_0_hariy_lines"
     network_name = "Netxxx_no_debug_plot"
-    all_episode_num = 1
+    all_episode_num = 1000
     total_timesteps_diy = int(1e2)
     max_steps = 300
 
     # SEED = 42 # 非必要不指定
 
     # 利用 gym 函数检查环境
-    env = IEMEnv(reward_type=custom_reward_type)
+    env = IEMEnv(reward_type=custom_reward_type,seed=42)
     # check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果
@@ -1103,7 +1104,8 @@ if __name__ == "__main__":
 
         episode_reward = 0
 
-        obs = env.reset(use_random_reset=False)
+        # obs = env.reset(use_random_reset=False)
+        obs, _ = env.reset(use_random_reset=False, seed=42)  # 重置环境，获得初始状态
         # obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
@@ -1112,6 +1114,11 @@ if __name__ == "__main__":
             # action = fixed_action
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
             action = env.action_space.sample()
+            
+            # action 使用模型生成的 
+            # from stable_baselines3 import DQN
+            # model = DQN.load(f"./model/iseec_lx_v4_mdp_plot_DQN_multi_objective_all_T_a_Ca_exp122_weights_change_more_ta_700000_default", env=env)
+            # action, _ = model.predict(obs, deterministic=True)
 
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
@@ -1123,7 +1130,7 @@ if __name__ == "__main__":
 
             if done:
                 print(f"Episode {episode} finished at step {i}")
-                env.render()
+                # env.render()
                 break
 
             ############ 添加转换的部分 #########
@@ -1158,27 +1165,27 @@ if __name__ == "__main__":
             total_timesteps_diy,
         )
 
-        save_plot_SSM_future_data(
-            env,
-            custom_reward_type,
-            rl_model_name,
-            network_name,
-            episode,
-            total_action,
-            total_state,
-            total_timesteps_diy,
-        )
+        # save_plot_SSM_future_data(
+        #     env,
+        #     custom_reward_type,
+        #     rl_model_name,
+        #     network_name,
+        #     episode,
+        #     total_action,
+        #     total_state,
+        #     total_timesteps_diy,
+        # )
 
-        save_plot_NSM_future_data(
-            env,
-            custom_reward_type,
-            rl_model_name,
-            network_name,
-            episode,
-            total_action,
-            total_state,
-            total_timesteps_diy,
-        )
+        # save_plot_NSM_future_data(
+        #     env,
+        #     custom_reward_type,
+        #     rl_model_name,
+        #     network_name,
+        #     episode,
+        #     total_action,
+        #     total_state,
+        #     total_timesteps_diy,
+        # )
 
         # env.append_data_reward(episode_reward)
 
