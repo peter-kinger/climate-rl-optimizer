@@ -1,0 +1,48 @@
+# config.yaml
+
+env:
+  reward_type: "multi_objective_single_T_a_exp861"
+  env_id: "iseec_lx_v4_mdp_plot"
+  debug: False
+  use_random_reset: True # 是否使用随机重置
+  seed: 42
+  control_start_year: 2017
+  pomdp_state_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  reward_pb_w1: 0.5
+  reward_pb_w2: 0.5
+  reward_scale_factor_below: 10
+  reward_penalty_scale_factor_above: 5
+  reward_penalty_for_too_low: -20
+
+# env:
+#   realization:
+#     - [1,11,21,171]
+#     - [3,14,30,180]
+#   max_steps: 100
+#   K: 1
+#   speed: 0.1
+#   len_r: 24
+#   wait_time: 10
+#   psi: 0.7
+#   C_fuel: 1
+#   omega_1: 100
+#   omega_2: 1
+#   omega_3: 1
+#   omega_4: 1
+#   omega_5: 1
+#   big_M: 9999
+#   approximal: 0.99
+
+dqn:
+  lr: 0.001
+  gamma: 0.99
+  batch_size: 64
+  epsilon_start: 1.0
+  epsilon_end: 0.05
+  epsilon_decay: 500
+  target_update_freq: 10
+  num_episodes: 7000
+  replay_buffer_size: 10000
+  hidden_dim: 128
+  save_pt_name: "iseec_lx_v5_ste.pt"
+
