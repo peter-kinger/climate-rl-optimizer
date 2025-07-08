@@ -123,26 +123,6 @@ class IEMEnv(gym.Env):
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-    # component of other
-    @np.vectorize
-    def compactification(x, x_mid):
-        if x == 0:
-            return 0
-        if x == np.infty:
-            return 1
-
-        return x / (x + x_mid)
-
-    @np.vectorize
-    def inv_compactification(y, x_mid):
-        if y == 0:
-            return 0.0
-        if np.allclose(
-            y, 1
-        ):  # rtol: 相对容差（默认 1e-05）atol: 绝对容差（默认 1e-08）
-            return np.infty
-        return x_mid * y / (1 - y)
-
     ################# Custom ENV 部分 ############################
     def simulate_time(self):
         # in our model

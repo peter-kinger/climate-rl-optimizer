@@ -29,7 +29,7 @@ class IEMEnv(gym.Env):
         self,
         reward_type=None,
         seed=None,
-        control_start_year=None,
+        control_start_year=2017,
         render_mode_diy=None,
         pomdp_state_indices=None,
         reward_pb_w1 = None,
@@ -56,8 +56,8 @@ class IEMEnv(gym.Env):
         # self.action_space = spaces.MultiDiscrete([2, 2])
         # self.action_space = spaces.Discrete(4)
         # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
-        # self.action_space = spaces.Discrete(16)
-        self.action_space = spaces.MultiDiscrete([3, 3, 3, 3, 3, 3])
+        self.action_space = spaces.Discrete(64)
+        # self.action_space = spaces.MultiDiscrete([2, 2, 2, 2, 2, 2])
 
         # 增加 POMDP 的部分
         self.agent_state_indices = pomdp_state_indices # [0, 2, 4, 5, 7]，只让 agent 观测这5个维度
@@ -124,26 +124,6 @@ class IEMEnv(gym.Env):
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-    # component of other
-    @np.vectorize
-    def compactification(x, x_mid):
-        if x == 0:
-            return 0
-        if x == np.infty:
-            return 1
-
-        return x / (x + x_mid)
-
-    @np.vectorize
-    def inv_compactification(y, x_mid):
-        if y == 0:
-            return 0.0
-        if np.allclose(
-            y, 1
-        ):  # rtol: 相对容差（默认 1e-05）atol: 绝对容差（默认 1e-08）
-            return np.infty
-        return x_mid * y / (1 - y)
-
     ################# Custom ENV 部分 ############################
     def simulate_time(self):
         # in our model
@@ -160,7 +140,8 @@ class IEMEnv(gym.Env):
         self.phase = np.random.uniform(0, 60, 1)[0]
         self.period = np.random.normal(5, 5, 26)
 
-        print(self.time)
+        # print(self.time)
+        print("开始运行")
 
     def inititalize_parameters(self):
         """初始化模型中的参数"""
@@ -365,9 +346,13 @@ class IEMEnv(gym.Env):
             if time < 2015:
                 re = 1
             else:
-                re = np.exp(-0.005 * (1 + T_a**1) * (time - 2016)) / np.exp(
-                    -0.005 * (time - 2016)
+                # re = np.exp(-0.005 * (1 + T_a**1) * (time - 2016)) / np.exp(
+                #     -0.005 * (time - 2016)
+                # )
+                re = np.exp(-self.re_temperature_warm_rate * (1 + T_a**1) * (time - 2016)) / np.exp(
+                    - self.re_temperature_warm_rate * (time - 2016)
                 )
+            
                 # re = np.exp(-self.energy_efficiency_rate * (1 + T_a**1) * (time - 2016)) / np.exp(
                 #     -self.energy_efficiency_rate * (time - 2016) # rl 部分
                 # )
@@ -445,17 +430,19 @@ class IEMEnv(gym.Env):
                 self.CO2emission_ACE3.append(0)
                 self.CO2emission_betaACE3.append(0)  # offset.  #(gross-offset=net)
                 self.CO2emission_net.append(0)  # net
-
             else:
                 ################ DRL 管控部分 ################
-                if self.taoACE_drl == 0:
-                    taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
-                    taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
-                    taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
-                else:
-                    taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0))
-                    taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5))
-                    taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0))
+                # if self.taoACE_drl == 0:
+                #     taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
+                #     taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
+                #     taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
+                # else:
+                #     taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0))
+                #     taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5))
+                #     taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0))
+                taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
+                taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
+                taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
                 ############################################
                 if taoACE1 < 1:
                     taoACE1 = 1
@@ -738,34 +725,39 @@ class IEMEnv(gym.Env):
         dC_od_dt = self.beta_od * diffusion_to_deepocean
         dT_o_dt = 1 / self.kappa_o * self.Do * (T_a - T_o)
 
-        # # # # # #  E21- Renewable using current technology (Solar and Wind)
-        ################ DRL 管控部分 ################
-        if self.eta0_21_drl == 0:
-            eta0_21 = 1 / 100  # 2 or 0.1
+        # ===  E21- Renewable using current technology (Solar and Wind) ===
+        # DRL 管控的部分 
+        # eta0_21 = 1 / 100  # 2 or 0.1
+        if self.e21_start_up == 0.1 /100:
+            eta0_21 = 0.1 / 100
         else:
-            eta0_21 = 2 / 100
-        ############################################
+            eta0_21 = 1 / 100  # 2 or 0.1
+        # eta0_21 = self.e21_start_up # 新的替换结果部分
 
         if int(time) not in self.time_count:
 
             ################ DRL 管控部分 ################
-            if self.taoR21_drl == 0:
-                self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0)))  # +0.6
-            else:
-                self.taoR21.append(50 * np.exp(-2 * (T_a + 0.6)))
+            # if self.taoR21_drl == 0:
+            # self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0)))  # +0.6
+            # else:
+            #     self.taoR21.append(50 * np.exp(-2 * (T_a + 0.6)))
+            self.taoR21.append(self.e21_response_time * np.exp(-self.e21_temperature_warm_rate * (T_a + 0.0)))
             ############################################
 
             self.taoP21.append(self.taoR21[-1] / 2)
             self.taoDV21.append(0)
 
             ################ DRL 管控部分 ################
-            if self.taoDF21_drl == 0:
-                self.taoDF21.append(
-                    50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
-                )  # X2 sensitivity test July 17, 2020
-            else:
-                self.taoDF21.append(
-                    50 / 2 / (1 + 2 * ((T_a + 0.6) ** 2))
+            # if self.taoDF21_drl == 0:
+            # self.taoDF21.append(
+            #     50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
+            # )  # X2 sensitivity test July 17, 2020
+            # else:
+            #     self.taoDF21.append(
+            #         50 / 2 / (1 + 2 * ((T_a + 0.6) ** 2))
+            #     )  # X2 sensitivity test July 17, 2020
+            self.taoDF21.append(
+                    self.e21_difffusion_time / (1 + 2 * ((T_a + 0.0) ** 2))
                 )  # X2 sensitivity test July 17, 2020
             ############################################
 
@@ -842,22 +834,26 @@ class IEMEnv(gym.Env):
 
         else:
             ################ DRL 管控部分 ################
-            if self.dE21_dt_drl == 6.03:
-                dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[
-                    -1
-                ]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
-            else:
-                dE21_dt = 0
+            # if self.dE21_dt_drl == 6.03:
+            #     dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[
+            #         -1
+            #     ]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
+            # else:
+            #     dE21_dt = 0
+            dE21_dt = (1 - E21 / self.k21[-1]) * E21 / self.tao21[-1] + self.eta21[
+                -1
+            ]  # +0.00*energy_MYadjusted18502100_total_plus_B3B[-1] # add addtional kick
             ############################################
             # dE21_dt =   0 # make this 0 to stop future growth of renewable at all
             # dE21_dt =   (1-E21/k21[-1])*E21/tao21[2015-1850]
 
         # # # # # #  E22: Renewable Using New Technology
         ################ DRL 管控部分 ################
-        if self.eta0_22_drl == 0:
-            eta0_22 = 1 / 100  # 0.1 or 2
-        else:
-            eta0_22 = 2 / 100
+        # if self.eta0_22_drl == 0:
+        #     eta0_22 = 1 / 100  # 0.1 or 2
+        # else:
+        #     eta0_22 = 2 / 100
+        eta0_22 = 1 / 100  # 0.1 or 2
         ############################################
 
         if int(time) not in self.time_count:
@@ -868,10 +864,11 @@ class IEMEnv(gym.Env):
             self.taoDF22.append(self.taoDF21[-1])
 
             ################ DRL 管控部分 ################
-            if self.taoDV22_temp_drl == 0:
-                taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
-            else:
-                taoDV22_temp = 30 / (1 + (T_a + 0.6) ** 2)  # +0.6
+            # if self.taoDV22_temp_drl == 0:
+            #     taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
+            # else:
+            #     taoDV22_temp = 30 / (1 + (T_a + 0.6) ** 2)  # +0.6
+            taoDV22_temp = self.e22_research_time / (1 + (T_a + 0.0) ** 2)  # +0.6
             ############################################
 
             if taoDV22_temp < 4:  # Yangyang removed this on July 15, 2020
@@ -947,12 +944,15 @@ class IEMEnv(gym.Env):
             dE22_dt = E22_present / (2016 - 2010)
         else:
             ################ DRL 管控部分 ################
-            if self.dE22_dt_drl == 6.08:
-                dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[
-                    -1
-                ]
-            else:
-                dE22_dt = 0
+            # if self.dE22_dt_drl == 6.08:
+            #     dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[
+            #         -1
+            #     ]
+            # else:
+            #     dE22_dt = 0
+            dE22_dt = (1 - E22 / self.k22[-1]) * E22 / self.tao22[-1] + self.eta22[
+                -1
+            ]
             ############################################
             # dE22_dt =   0 # make this 0 to stop future growth of renewable
             # dE22_dt =   (1-E22/k22[-1])*E22/tao22[2015-1850]
@@ -1020,25 +1020,24 @@ class IEMEnv(gym.Env):
         return self.state[self.agent_state_indices]
     
     def _get_action_mask(self):
-        # 创建一个完整的 mask 
-        # mask_type = np.zeros(len(self.action_space), dtype=np.int8)
-        # type 1 类型处理 
-        mask_type1 = np.zeros(3, dtype=np.int8)
-        if self.t - self.last_type1_change >= 5: # 从允许的动作里面来挑选
-            mask_type1[:] = 1 # type 1 里面的动作都是允许的
-        else:
-            mask_type1[self.last_type1] = 1  # 只允许维持原动作
-        # type 2 类型的允许
-        mask_type2 = np.ones(3, dtype=np.int8)  # 每步都能改 # TODO： 可扩大到其他的动作类型
-        # type 3 类型的允许
-        mask_type3 = np.zeros(3, dtype=np.int8)
-        # if (self.t - self.last_type3_change >= 10) and (self.type3_change_count < 3):
-        if (self.t - self.last_type3_change >= 10):
-            mask_type3[:] = 1
-        else:
-            mask_type3[self.last_type3] = 1  # 只允许维持原动作
-            
-        return mask_type1, mask_type2, mask_type3
+        mask = []
+        rules = [1, 5, 10, 5, -1, 10]  # -1代表episode只允许变一次
+        for i in range(6):
+            m = np.zeros(3, dtype=np.int8)
+            if i == 0:
+                m[:] = 1   # 每步都能改
+            elif i == 4:
+                if not self.has_changed_once_4:
+                    m[:] = 1  # 没变过允许自由变
+                else:
+                    m[self.last_action[4]] = 1  # 已变过，只能选当前
+            else:
+                if self.t - self.last_change[i] >= rules[i]:
+                    m[:] = 1
+                else:
+                    m[self.last_action[i]] = 1  # 只允许维持上一步
+            mask.append(m)
+        return mask
         
     def get_observation(self, next_t):
         """This is where we solve the dynamical system of equations to get the next state"""
@@ -1047,7 +1046,7 @@ class IEMEnv(gym.Env):
             func=self.iseec_dynamics_v1_ste,
             y0=self.state,
             t=[self.t, next_t],
-            mxstep=50000,
+            mxstep=300,
         ) # 获取交互的部分
        
         # 确保返回的是 numpy 数组(也就是环境的子集，但实际上这里有大量的转换空间可以操作)
@@ -2903,82 +2902,6 @@ class IEMEnv(gym.Env):
         else:
             raise ValueError("没有对应的奖励函数")
 
-    def apply_action_ste(self, action):
-        """根据 copan 和 ays 模型代码改编：Adjust the parameters before computing the ODE by using the actions
-        主要描述 social tipping element 里面描述的 action，同时结合了模型现有的组件基础
-
-        gym example:
-        self.action_space = spaces.MultiDiscrete([2, 2, 2])
-        """
-
-        # if action[0] == 0:
-        if action == 0:
-            self.carbon_tax_rate = -100
-
-        elif action == 1:
-            self.carbon_tax_rate = 0
-
-        elif action == 2:
-            self.carbon_tax_rate = 100
-
-        elif action == 3:
-            self.carbon_tax_rate = 500
-
-        else:
-            raise ValueError("没有对应的 action")
-
-    def apply_action_iseec_case_one(self, action):
-        """主要是根据原文中设置的了几个 case 来进行设计
-
-        Args:
-            action (_type_): _description_
-        """
-
-        # 1. 是否加快社会响应
-        # dE21_dt : 2016 时候计算得到 6.03， 不发展时候就是 0 （作用时间：2017以后）
-        # dE22_dt : 2016 时候计算得到 6.08， 不发展时候就是 0 （作用时间：2017以后）
-        if action[0] == 0:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-        else:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-        # 2. 是否加快可再生能源技术扩散时间 / ACE 大气碳提取技术的启动投资
-        # 2.1 是否加快可再生能源技术扩散时间
-        # self.taoR21.append(50 * np.exp(-2 * (T_a + 0.0))) -》 0 / 0.6 切换
-        # self.taoDF21.append(50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))) -》 0 / 0.6 切换
-        # self.taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6 -》 0 / 0.6 切换
-        if action[1] == 0:
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-        else:
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-        # 2.2 是否加快 ACE 大气碳提取技术的启动投资
-        # taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0)) -> 0 / 0.6 切换
-        # taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5)) -> 0 / 0.6 切换
-        # taoACE3 = 10 * np.exp(-1 * (T_a + 0.6 - 2.0)) -> 0 / 0.6 切换
-        if action[2] == 0:
-            self.taoACE_drl = 0
-        else:
-            self.taoACE_drl = 0.6
-
-        # 3. 大幅增加可再生能源技术的启动投资
-        # eta0_21 = 2 / 100 -> 0.1 / 1 / 2 切换, 先按照 1 / 2 来进行对比(效果明显)
-        # eta0_22 = 2 / 100 -> 0.1 / 1 / 2 切换
-        if action[3] == 0:
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        else:
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-
-        self.current_action = action.copy() if hasattr(action, "copy") else action
-
     def apply_action_iseec_multiple(self, action):
         """主要是根据原文中设置的了几个 case 来进行设计
         统一归类为一个维度
@@ -3200,14 +3123,40 @@ class IEMEnv(gym.Env):
 
         self.current_action = action.copy() if hasattr(action, "copy") else action
         
+    def decode_action_low_dimension(self, action_id):
+        """针对于传入的 action 进行对应解码来定量计算
+        """
+        action_vec = [int(x) for x in f"{action_id:06b}"] # 0: 填充字符，6 二进制长度字符宽度，b 转换类型，列表推导式
+        return action_vec
+        
     def apply_action_ste(self, action):
         """生成 ste 动作对环境的参数更改
 
         Args:
-            action (_type_): _description_
+            action (_type_): 传入的 action 是一个 flatten 结果, 示例 729
         """
-        # 书写全部的参数部分
+        # action 实例： [0, 1, 0, 2, 2, 1]
+        # 根据不同维度 action 选择来改变模型的参数
         
+        action_vec = action
+        
+        parameters_ste1 = [0.005, 0.18]
+        self.re_temperature_warm_rate = parameters_ste1[action_vec[0]]
+
+        parameters_ste2 = [2, 4]
+        self.e21_temperature_warm_rate = parameters_ste2[action_vec[1]]
+
+        parameters_ste3 = [50, 80]
+        self.e21_response_time = parameters_ste3[action_vec[2]]
+
+        parameters_ste4 = [25, 40]
+        self.e21_difffusion_time = parameters_ste4[action_vec[3]]
+
+        parameters_ste5 = [0.1, 2]
+        self.e21_start_up = parameters_ste5[action_vec[4]]
+
+        parameters_ste6 = [30, 45]
+        self.e22_research_time = parameters_ste6[action_vec[5]]
 
     def reset(
         self, use_random_reset=True, seed=None, start_state=None
@@ -3267,21 +3216,28 @@ class IEMEnv(gym.Env):
         ###########  关于 action 部分的重置 ###################
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
-        self.carbon_tax_rate = 0  # 保证默认的可以运行
+        # self.carbon_tax_rate = 0  # 保证默认的可以运行
 
-        # 全用 action = 0 默认的来保证预热数据
-        self.dE21_dt_drl = 6.03
-        self.dE22_dt_drl = 6.08
+        # # 全用 action = 0 默认的来保证预热数据
+        # self.dE21_dt_drl = 6.03
+        # self.dE22_dt_drl = 6.08
 
-        self.taoR21_drl = 0
-        self.taoDF21_drl = 0
-        self.taoDV22_temp_drl = 0
+        # self.taoR21_drl = 0
+        # self.taoDF21_drl = 0
+        # self.taoDV22_temp_drl = 0
 
-        self.taoACE_drl = 0
+        # self.taoACE_drl = 0
 
-        self.eta0_21_drl = 1 / 100
-        self.eta0_22_drl = 1 / 100
-
+        # self.eta0_21_drl = 1 / 100
+        # self.eta0_22_drl = 1 / 100
+        
+        self.re_temperature_warm_rate = 0.005
+        self.e21_temperature_warm_rate = 2
+        self.e21_response_time = 50 
+        self.e21_difffusion_time = 25
+        self.e21_start_up = 0.1/100
+        self.e22_research_time = 30
+    
         # 2. 重置时间和步数
         self.t = self.model_init_year
         self.steps = 0
@@ -3445,8 +3401,10 @@ class IEMEnv(gym.Env):
         # === action 和 演进的部分放在了一起 ===
         # 判断 action 是否合理（action masking）
         # 根据 action space 判断有 6 个 Action
+        # TODO 更换为单维动作
         mask = self._get_action_mask()
-        action = list(action)
+        action = list(self.decode_action_low_dimension(action))
+        
         # 检查每一维是否合法，否则强制用上次
         for i in range(6):
             if mask[i][action[i]] == 0:
@@ -3459,6 +3417,7 @@ class IEMEnv(gym.Env):
                     self.last_change[i] = self.t
                     self.last_action[i] = action[i]
         
+        # 传入的 action 已经是 encode 过且 mask 过了
         # self.apply_action(action) # 选择切换到底是哪个动作
         self.apply_action_ste(action)  # 送入的 action 应该是全新的正确 action (action masking 处理过的)
 
@@ -3470,7 +3429,7 @@ class IEMEnv(gym.Env):
         reward = self.reward_function()
 
         # Record state history - add this section
-        action_number_env, action_name_env = self.action2number_env(action)
+        # action_number_env, action_name_env = self.action2number_env(action)
         self.state_history["time"].append(self.t)
         self.state_history["T_a"].append(self.state[0])
         self.state_history["C_a"].append(self.state[1])
@@ -3483,7 +3442,7 @@ class IEMEnv(gym.Env):
         self.state_history["E24"].append(self.state[8])
         self.state_history["E12"].append(self.state[9])
         self.state_history["reward"].append(reward)
-        self.state_history["action"].append(action_number_env)
+        # self.state_history["action"].append(action_number_env)
         self.state_history["action_all_dim"].append(action)
 
         # 记录总共训练的次数
@@ -3519,6 +3478,7 @@ class IEMEnv(gym.Env):
         # - 到达最大时间步长
         # - 超出地球边界
         self.done = False
+        
         if self.t >= self.model_end_year:
             self.done = True
 

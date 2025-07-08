@@ -29,7 +29,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 # 修改导入语句
-from envs.iseec_lx_v4_mdp_plot import IEMEnv
+from envs.iseec_lx_v5_ste import IEMEnv
 from IPython.display import clear_output
 
 
@@ -889,6 +889,10 @@ def plot_3D_run(
     # 关闭图表
     plt.close(fig)  # Close the figure to free memory
 
+# from utils.load_config_parameter import load_config
+# config = load_config("config.yaml")
+# env_cfg = config["env"]
+# dqn_cfg = config["dqn"]
 
 if __name__ == "__main__":
 
@@ -904,7 +908,16 @@ if __name__ == "__main__":
     # SEED = 42 # 非必要不指定
 
     # 利用 gym 函数检查环境
-    env = IEMEnv(reward_type=custom_reward_type,seed=42)
+    env = IEMEnv(
+        reward_type = "multi_objective_single_T_a_exp861",
+        seed = 42,
+        pomdp_state_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 
+        reward_pb_w1 = 0.5,
+        reward_pb_w2 = 0.5,
+        reward_scale_factor_below = 10,
+        reward_penalty_scale_factor_above = 5,
+        reward_penalty_for_too_low = -20
+    )
     # check_env(env) # 这里也许会导致多次 reset 调用
 
     # 存储多次 episode 训练的结果

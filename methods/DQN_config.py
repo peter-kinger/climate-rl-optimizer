@@ -23,7 +23,7 @@ def make_env(config): # 从 config 中来更改环境部分
     return IEMEnv(
         reward_type = config["env"]["reward_type"],
         seed = config["env"]["seed"],
-        control_start_year = config["env"]["control_start_year"], 
+        # control_start_year = config["env"]["control_start_year"], 
         pomdp_state_indices = config["env"]["pomdp_state_indices"], 
         reward_pb_w1 = config["env"]["reward_pb_w1"],
         reward_pb_w2 = config["env"]["reward_pb_w2"],
@@ -104,8 +104,9 @@ def DQN_main(config):
     q_values_list = []
     
     print("开始训练")
-    pbar = trange(num_episodes, desc="Training Episodes") # 增加进度条部分
-    for episode in pbar: # 增加进度条部分
+    # pbar = trange(num_episodes, desc="Training Episodes") # 增加进度条部分
+    # for episode in pbar: # 增加进度条部分
+    for episode in range(num_episodes):
         state, _ = env.reset() # 可选增加里面的细节考虑
         
         episode_reward = 0
@@ -156,13 +157,13 @@ def DQN_main(config):
             target_net.load_state_dict(q_net.state_dict())
 
         print(f"🎯 Episode {episode} | Reward: {episode_reward:.2f} | Epsilon: {epsilon:.3f}")
-        pbar.set_postfix(Reward=f"{episode_reward:.2f}", Epsilon=f"{epsilon:.3f}") # 增加进度条部分
+        # pbar.set_postfix(Reward=f"{episode_reward:.2f}", Epsilon=f"{epsilon:.3f}") # 增加进度条部分
 
     # 保存模型训练后的结果
     # 确保results目录存在
-    os.makedirs("training_results", exist_ok=True)
+    os.makedirs("./model", exist_ok=True)
     # 构建新的保存路径
-    model_save_path = os.path.join("training_results", os.path.basename(dqn_cfg["save_pt_name"]))
+    model_save_path = os.path.join("./model", config["dqn"]["save_pt_name"])
 
     # 保存模型
     torch.save(q_net.state_dict(), model_save_path)
@@ -200,4 +201,5 @@ def DQN_main(config):
     plt.savefig(plot_save_path, dpi=300, bbox_inches='tight')
     
     plt.show()
+
 

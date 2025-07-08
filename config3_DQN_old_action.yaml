@@ -40,7 +40,7 @@ dqn:
   epsilon_end: 0.05
   epsilon_decay: 500
   target_update_freq: 10
-  num_episodes: 7
+  num_episodes: 7000
   replay_buffer_size: 10000
   hidden_dim: 128
   save_pt_name: "iseec_lx_v5_ste.pt"

@@ -10,9 +10,10 @@ from src.utils.load_config_parameter import load_config
 from datetime import datetime
 from methods.DQN_config import DQN_main
 
-
 # （1）读取配置 =============================================================================
-config = load_config("config.yaml")
+# 配置1
+config_name = "config.yaml"
+config = load_config(config_name)
 env_cfg = config["env"]
 dqn_cfg = config["dqn"]
 
@@ -39,8 +40,8 @@ def modify_config(config, section=None, key=None, value=None, updates_dict=None)
 if __name__ == "__main__":
     # 第一个实验
     parameter1 = {
-    "env": {"seed": 50},
-    "dqn": {"num_episodes": 6000,"save_pt_name" : '{config["env"]["env_id"]}_{config["env"]["custom_reward_type"]}_1_.pt'} # "save_pt_name" : '{config["env"]["env_id"]}_{config["env"]["seed"]}_{config["env"]["custom_reward_type"]}_1_.pt' 注意种子的更换
+    # "env": {"seed": 50},
+    "dqn": {"save_pt_name" : f'{config_name}_{config["env"]["env_id"]}_{config["env"]["seed"]}_{config["env"]["reward_type"]}_{config["dqn"]["num_episodes"]}_{config_name}.pt'}
     }
     exp_1_config = modify_config(config, updates_dict=parameter1)
     DQN_main(exp_1_config)
@@ -52,3 +53,4 @@ if __name__ == "__main__":
     # }
     # exp_2_config = modify_config(config, updates_dict=parameter2)
     # DQN_main(exp_2_config)
+
