@@ -2,7 +2,7 @@
 
 env:
   reward_type: "multi_objective_single_T_a_exp861"
-  env_id: "iseec_lx_v5_ste"
+  env_id: "iseec_lx_v4_pomdp"
   debug: False
   use_random_reset: True # 是否使用随机重置
   seed: 42
@@ -33,15 +33,15 @@ env:
 #   approximal: 0.99
 
 dqn:
-  lr: 0.001
+  lr: 0.0001
   gamma: 0.99
-  batch_size: 64
+  batch_size: 32
   epsilon_start: 1.0
   epsilon_end: 0.05
-  epsilon_decay: 500
-  target_update_freq: 10
-  num_episodes: 100
-  replay_buffer_size: 10000
-  hidden_dim: 128
-  save_pt_name: "iseec_lx_v5_ste.pt"
+  epsilon_decay: 350000  # 见说明
+  target_update_freq: 500 # 目标网络更新频率
+  num_episodes: 6000     # 或根据 total_timesteps 设定
+  replay_buffer_size: 100000 # replay_buffer_init_size: 10000 # 初始化经验回放缓冲区的大小
+  hidden_dim: 64
+  save_pt_name: "iseec_lx_v4_pomdp"
 

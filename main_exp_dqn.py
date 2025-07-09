@@ -12,8 +12,9 @@ from methods.DQN_config import DQN_main
 
 # （1）读取配置 =============================================================================
 # 配置1
-config_name = "config.yaml"
-config = load_config(config_name)
+config = "config4_DQN_old_env_action.yaml"
+config_name = os.path.splitext(os.path.basename(config))[0]  # 获取配置文件名（不带扩展名）
+config = load_config(config)
 env_cfg = config["env"]
 dqn_cfg = config["dqn"]
 
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     # 第一个实验
     parameter1 = {
     # "env": {"seed": 50},
-    "dqn": {"save_pt_name" : f'{config_name}_{config["env"]["env_id"]}_{config["env"]["seed"]}_{config["env"]["reward_type"]}_{config["dqn"]["num_episodes"]}_{config_name}.pt'}
+    "dqn": {"save_pt_name" : f'{config_name}_{config["env"]["env_id"]}_{config["env"]["seed"]}_{config["env"]["reward_type"]}_{config["dqn"]["num_episodes"]}.pt'}
     }
     exp_1_config = modify_config(config, updates_dict=parameter1)
     DQN_main(exp_1_config)

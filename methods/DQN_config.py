@@ -3,7 +3,7 @@ import sys
 import os
 import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(__file__))) # 等效 sys.path.append(os.path.abspath("src"))
-from src.envs.iseec_lx_v5_ste import IEMEnv
+from src.envs.iseec_lx_v4_pomdp import IEMEnv
 from src.utils.load_config_parameter import load_config
 import torch
 import torch.nn as nn
@@ -12,11 +12,6 @@ import random
 from tqdm import trange
 import matplotlib.pyplot as plt
 from collections import deque
-
-# === 读取配置 ===
-config = load_config("config.yaml")
-env_cfg = config["env"]
-dqn_cfg = config["dqn"]
 
 # === 创建环境函数 ===
 def make_env(config): # 从 config 中来更改环境部分
@@ -34,9 +29,9 @@ def make_env(config): # 从 config 中来更改环境部分
 
 # === Q 网络 ===
 class QNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim, action_dim, config=None):
         super(QNetwork, self).__init__()
-        h = dqn_cfg["hidden_dim"]
+        h = config["dqn"]["hidden_dim"] 
         self.net = nn.Sequential(
             nn.Linear(state_dim, h),
             nn.ReLU(),
@@ -81,8 +76,8 @@ def DQN_main(config):
     action_dim = env.action_space.n
 
     # 配置对于的神经网络
-    q_net = QNetwork(state_dim, action_dim) # 用于选择动作
-    target_net = QNetwork(state_dim, action_dim) # 用于计算目标值
+    q_net = QNetwork(state_dim, action_dim, config) # 用于选择动作
+    target_net = QNetwork(state_dim, action_dim, config) # 用于计算目标值
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
 
@@ -122,9 +117,20 @@ def DQN_main(config):
                 with torch.no_grad():
                     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
                     q_values = q_net(state_tensor)
+                    # === 应用掩码部分 ===
+                    # action_mask = mask  # mask是np.array或list
+                    # masked_q = q_values.clone()
+                    # # 将非法动作的Q值设为极小
+                    # masked_q[torch.tensor(action_mask) == 0] = -float('inf')
+                    # === 应用掩码部分结束 ===
+                    # 选择最大Q值对应的动作
                     action = q_values.argmax().item()
+                    # action = masked_q.argmax().item()
 
-            next_state, reward, terminated, truncated, _ = env.step(action)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            # === 动作掩码的获取 ===
+            # mask = info["action_mask"]
+            # === 动作掩码的获取结束 ===
             done = terminated or truncated
             episode_reward += reward
 
@@ -173,7 +179,10 @@ def DQN_main(config):
     # === 绘图 ===
     fig, axes = plt.subplots(3, 1, figsize=(10, 10))
 
-    axes[0].plot(episode_rewards_list, label='Episode Reward', color='blue')
+    # axes[0].plot(episode_rewards_list, label='Episode Reward', color='blue')
+    window_size = 10  # 可根据需要调整
+    moving_avg = np.convolve(episode_rewards_list, np.ones(window_size)/window_size, mode='valid')
+    axes[0].plot(moving_avg, label='Smoothed Reward (MA)', color='red')
     axes[0].set_title('Episode Reward over Training')
     axes[0].set_xlabel('Episode')
     axes[0].set_ylabel('Reward')
