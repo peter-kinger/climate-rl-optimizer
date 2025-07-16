@@ -1223,11 +1223,14 @@ class IEMEnv(gym.Env):
 
             r_total = w1 * r_Ta + w2 * r_Ca + distance  # 距离越小奖励越高
             
-            self.state_history["reward_Ta"].append(r_Ta)
+            self.state_history["reward_Ta"].append(r_Ta) # 基于已有的 reward 已经可以进行计算了
             self.state_history["reward_Ca"].append(r_Ca)
             self.state_history["reward_distance"].append(distance)
             
             # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = r_Ta * w1
+            self.reward_dim2 = r_Ca * w2
+            self.reward_dim3 = distance
             
             return r_total  # 距离越小奖励越高
         
@@ -2218,6 +2221,11 @@ class IEMEnv(gym.Env):
 
         # 计算奖励
         self.action_cost_policy_cal = action # 给 cost of policy 来计算使用
+        # 增加对分维度 episode reward 变化结果的监控
+        self.reward_dim1 = 0
+        self.reward_dim2 = 0
+        self.reward_dim3 = 0
+
         reward = self.reward_function()
 
         # Record state history - add this section
@@ -2271,6 +2279,11 @@ class IEMEnv(gym.Env):
                 "E24": self.state[8],
                 "E12": self.state[9],
             },
+            "reward": {
+                "dim1": self.reward_dim1,
+                "dim2": self.reward_dim2,
+                "dim3": self.reward_dim3
+            }
         }
 
         # 计算终止
