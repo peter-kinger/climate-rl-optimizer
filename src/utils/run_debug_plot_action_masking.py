@@ -30,7 +30,7 @@ sys.path.append(parent_dir)
 
 # 修改导入语句
 # from envs.iseec_lx_v4_mdp_plot import IEMEnv
-from envs.iseec_lx_v5_pomdp_without_masking import IEMEnv
+from envs.iseec_lx_v5_pomdp_without_masking_all_actions import IEMEnv
 from IPython.display import clear_output
 
 
@@ -143,7 +143,8 @@ def save_future_data_excel(
     total_timesteps_name,
     total_reward_Ta,
     total_reward_Ca,
-    total_reward_distance
+    total_reward_distance,
+    total_reward_cost_action
 ):
     """
     保存文件为 xlsx文件
@@ -171,6 +172,7 @@ def save_future_data_excel(
         "reward_Ta": [],
         "reward_Ca": [],
         "reward_distance": [],
+        "reward_cost_action": [],
     }
 
     # 遍历所有步骤收集数据
@@ -202,6 +204,7 @@ def save_future_data_excel(
         data["reward_Ta"].append(total_reward_Ta[step])
         data["reward_Ca"].append(total_reward_Ca[step])
         data["reward_distance"].append(total_reward_distance[step])
+        data["reward_cost_action"].append(total_reward_cost_action[step])
         data["done"].append(total_done[step])
 
     df = pd.DataFrame(data)
@@ -851,9 +854,9 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "PB_compute_over_add"
-    rl_model_name = "random_policy"
-    network_name = "Netxxx_no_debug_plot"
+    custom_reward_type = "PB_compute_over_cost_management"
+    rl_model_name = "fixed_action_13_default"
+    network_name = "Netxxx_no_debug_plot_all_actions"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
@@ -873,182 +876,6 @@ if __name__ == "__main__":
     # fixed_action = np.array([0, 0, 0, 0])
     # fixed_action = 0  # 0 是 default ，1是最高值，14是最低值
 
-    human_action_guard = [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        6,
-        6,
-        6,
-        6,
-        6,
-        6,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        15,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-    ]  # 10 年分割相关的动作序列
-
-    human_action_radicalness = [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        14,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-        9,
-    ]
-
     for episode in range(all_episode_num):  # 增加100次训练循环
 
         ##################################
@@ -1064,6 +891,9 @@ if __name__ == "__main__":
         total_reward_Ta = []
         total_reward_Ca = []    
         total_reward_distance = []
+        total_reward_cost_action = []
+        
+        # total_state_diy_energy_MYadjusted18502100_total_plus_B3B_plus_ACE3
         ##################################
 
         episode_reward = 0
@@ -1074,9 +904,9 @@ if __name__ == "__main__":
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
 
-            # action = 13
+            action = 13
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
-            action = env.action_space.sample()
+            # action = env.action_space.sample()
 
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
@@ -1105,17 +935,45 @@ if __name__ == "__main__":
             total_reward_Ta.append(env.state_history["reward_Ta"][-1])
             total_reward_Ca.append(env.state_history["reward_Ca"][-1])
             total_reward_distance.append(env.state_history["reward_distance"][-1])
+            total_reward_cost_action.append(env.state_history["reward_cost_action"][-1])
 
             # 打印每次运行结果
             print(i + env.model_init_year)
             print(f"当前奖励: {reward}")
             print(f"累计奖励: {episode_reward}")
             print(f"额外信息: {info}")
+            
 
         append_data_episode(episode_reward)
 
         print("---------------------------------------")
         print(f"Episode {episode} finished at step {i}")
+        
+        # === 保存数组储存的数据部分 ===
+        # 结果每次保存都是同名
+        data_diy = {
+            'Time': env.time,
+            "energy_MYbaseline18502100_total_formulated": env.energy_MYbaseline18502100_total_formulated,
+            "energy_MYadjusted18502100_total_plus_B3B_plus_ACE3": env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3,
+            "taoR21": env.taoR21,
+            "taoP21": env.taoP21,
+            "taoDV21": env.taoDV21,
+            "taoDF21": env.taoDF21,
+            "tao21": env.tao21,
+            "taoR22": env.taoR22,
+            "taoP22": env.taoP22,
+            "taoDV22": env.taoDV22,
+            "taoDF22": env.taoDF22,
+            "tao22": env.tao22,
+            "eta21": env.eta21,
+            "eta22": env.eta22,
+            # self.E11
+            # self.E21+self.E22+self.E23+self.E24
+        }
+        df_data_diy = pd.DataFrame(data_diy)
+        df_data_diy.to_excel('output/iseec_ssp5_MIT_data_diy.xlsx', index=False)
+        print('iseec_ssp5_MIT_data_diy.xlsx 已保存')
+        ##################################
 
         # 每次 episode 结束时保存数据
         save_future_data_excel(
@@ -1134,7 +992,8 @@ if __name__ == "__main__":
             total_timesteps_diy,
             total_reward_Ta,
             total_reward_Ca,
-            total_reward_distance
+            total_reward_distance,
+            total_reward_cost_action
         )
 
         save_plot_SSM_future_data(
