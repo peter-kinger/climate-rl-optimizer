@@ -37,6 +37,7 @@ class IEMEnv(gym.Env):
         seed=None,
         control_start_year=2017,
         render_mode_diy=None,
+        
         **kwargs
     ):
         super(IEMEnv, self).__init__()
@@ -66,6 +67,15 @@ class IEMEnv(gym.Env):
 
         # 3. 奖励设置
         self.reward_function = self.get_reward_function(reward_type)
+        
+        # 增加对环境中 reward 设置的具体值
+        # TODO 
+        self.reward_weights = reward_weights or {
+            'Ta': 1.0,
+            'Ca': 1.0,
+            'energy': 1.0,
+            'over': -1.0
+        }
 
         # 4. 其他固定参数
         self.max_steps = self.model_end_year - self.model_init_year

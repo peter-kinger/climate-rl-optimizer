@@ -854,8 +854,8 @@ def plot_3D_run(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "PB_compute_over"
-    rl_model_name = "fixed_action_13_default"
+    custom_reward_type = "weight_three_obj"
+    rl_model_name = "fixed_action_2_slow"
     network_name = "Netxxx_no_debug_plot_all_actions"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
@@ -904,7 +904,7 @@ if __name__ == "__main__":
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
 
-            action = 13
+            action = 2
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
             # action = env.action_space.sample()
 
