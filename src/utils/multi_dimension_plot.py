@@ -24,7 +24,6 @@ def plot_hairy_lines(num, ax3d, env):
             alpha=0.08,
         )
 
-
 def create_figure(
     Azimut=170,
     Elevation=25,

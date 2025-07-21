@@ -9,29 +9,23 @@ import scipy.io
 from matplotlib.gridspec import GridSpec
 import math
 import datetime
-
 from stable_baselines3.common.env_checker import check_env
-
 # 在代码最开始添加
 import os
-
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-
 import sys
 import os
-
 # 获取当前文件的目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # 获取src目录
 parent_dir = os.path.dirname(current_dir)
 # 将src目录添加到Python路径
 sys.path.append(parent_dir)
-
 # 修改导入语句
 # from envs.iseec_lx_v4_mdp_plot import IEMEnv
 from envs.iseec_lx_v5_pomdp_without_masking_all_actions import IEMEnv
 from IPython.display import clear_output
+from stable_baselines3 import DQN
 
 
 def init_data():
@@ -147,7 +141,7 @@ def save_future_data_excel(
     total_reward_cost_action
 ):
     """
-    保存文件为 xlsx文件
+    保存文件为 xlsx文件, 且内部的数据保存的都是 83 长度的未来时期数据
     """
     # 创建DataFrame来存储数据
     data = {
@@ -385,6 +379,7 @@ def save_plot_SSM_future_data(
     energy_MYadjusted18502100_total_plus_B3B_plus_ACE3_train = (
         env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[0 : int(len(total_state))]
     )
+    
     E11 = (
         energy_MYadjusted18502100_total_plus_B3B_plus_ACE3_train
         - E21
@@ -501,7 +496,7 @@ def save_plot_NSM_data(
     fig = plt.figure(figsize=(18, 12))
     gs = gridspec.GridSpec(3, 3, height_ratios=[1, 1.5, 1])
 
-    years = np.array([env.model_init_year + i for i in range(len(total_state))])
+    years = np.array([env.control_start_year + i for i in range(len(total_state))])
     states = np.array(total_state)
     T_a = states[:, 0]
     C_a = states[:, 1]
@@ -850,13 +845,147 @@ def plot_3D_run(
     # 关闭图表
     plt.close(fig)  # Close the figure to free memory
 
+def save_plot_evaluation_four_state(
+    env,
+    custom_reward_type,
+    rl_model_name,
+    network_name,
+    episode,
+    total_state,
+    total_timesteps_name,
+    ) -> None:
+    
+    """绘制 iseec 正文中类似于state评估的图片，
+    """
+    
+    years = np.array([env.control_start_year + i for i in range(len(total_state))])
+    states = np.array(total_state)
+    T_a = states[:, 0]
+    C_a = states[:, 1]
+    
+    E21 = states[:, 5]
+    E22 = states[:, 6]
+    E23 = states[:, 7]
+    E24 = states[:, 8]
+    E12 = states[:, 9]
+    
+    E11 = (
+        env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:]
+        - E21
+        - E22
+        - E23
+        - E24
+        - E12
+    )
+    
+    ################ 绘制 ##################
+    # 创建一个 figure
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    # gs = GridSpec(2, 2, figure=fig)
+
+    # 统一的x轴
+    xlim = (2016, 2100)
+
+    # 子图1: 
+    ax1 = axes[0, 0]
+    net_emission = [(x - b - c - d / e) * 44 / 12 for x, b, c, d, e in zip(
+    env.CO2emission_actualFF, env.CO2emission_ACE1, env.CO2emission_ACE2,
+    env.CO2emission_ACE3, env.ratio_net_over_gross
+    )]
+    ax1.plot(years, net_emission[-83:], label='ISEEC simulated', color='black')
+    ax1.set_ylabel('CO2 emission (net) (Gt CO2/yr)')
+    # ax1.set_xlim(xlim)
+    # ax1.set_ylim(-80, 40)
+    ax1.legend()
+    ax1.set_title('Net CO2 Emission')
+    
+    # 子图2: 
+    ax2 = axes[0, 1]
+    
+    ax2.plot(years, env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:], 
+            label='drl-ISEEC simulated', color='black')
+    ax2.plot(years, env.energy_MYbaseline18502100_total_formulated[-83:], 
+            label='baseline', linestyle='dotted', color='red')
+    
+    ax2.set_ylabel('Total Energy')
+    ax2.set_xlim(xlim)
+    # ax2.set_ylim(600, 1900)
+    ax2.legend()
+    ax2.set_title('Total Energy')
+
+    # 子图3: 
+    ax3 = axes[1, 0]
+    ax3.plot(years, C_a * env.rho_a, label='Simulated', color='blue') # env.rho_a 约等于 0.4629629629629629
+    
+    ax3.plot(env.IAM_CO2concentration.iloc[2-2,4:].astype('float') , label = 'IAMs',linestyle='dotted', marker='',color = 'blue')
+    ax3.plot(env.IAM_CO2concentration.iloc[3-2,4:].astype('float') , linestyle='dotted', marker='',color = 'blue')
+    ax3.plot(env.IAM_CO2concentration.iloc[4-2,4:].astype('float') , linestyle='dotted', marker='',color = 'blue')
+    ax3.plot(env.IAM_CO2concentration.iloc[5-2,4:].astype('float') , linestyle='dotted', marker='',color = 'blue')
+    ax3.set_ylabel("CO2 concentration (ppm)")
+    ax3.set_xlim(xlim)
+    # ax3.set_ylim(250, 450)
+    ax3.legend()
+    ax3.set_title('CO2 Concentration')
+
+    # 子图4: 
+    ax4 = axes[1, 1]
+    ax4.plot(years, T_a, label='ISEEC Simulated', color='black')\
+    
+    ax4.plot(env.IAM_Temperature.iloc[2-2,4:].astype('float') , label = 'IAMs',linestyle='dotted', marker='',color = 'blue')
+    ax4.plot(env.IAM_Temperature.iloc[3-2,4:].astype('float') ,linestyle='dotted', marker='',color = 'blue')
+    ax4.plot(env.IAM_Temperature.iloc[4-2,4:].astype('float') , linestyle='dotted', marker='',color = 'blue')
+    ax4.plot (env.IAM_Temperature.iloc[5-2,4:].astype('float') , linestyle='dotted', marker='',color = 'blue')
+    ax4.set_ylabel('Temperature (K)')
+    ax4.set_xlim(xlim)
+    # ax4.set_ylim(0.8, 1.8)
+    ax4.legend()
+    ax4.set_title('Temperature')
+    
+    # # optional: 绘制可再生能源比例
+    # ax4.plot(years, (E21 + E22 + E23 + E24) / env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label = 'drl-ISEEC simulated',color = 'black',linestyle = 'solid')
+    # ax4.legend()
+    # ax4.set_ylabel('share of renewable (%)')
+    
+    # opional: 绘制各部分详细的比例部分
+    # ax4.plot(years, (E11)/env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label='E11 / total', color='blue')
+    # ax4.plot(years, (E12)/env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label='E12 / total', color='green')
+    # ax4.plot(years, (E21)/env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label='E21 / total', color='black')
+    # ax4.plot(years, (E22)/env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label='E22 / total', color='pink')
+    # ax4.plot(years, (E23)/env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label='E23 / total', color='red')
+    # ax4.plot(years, (E21 + E22 + E23 + E24)//env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-83:],  label= 'renew_obs / total_obs', color='red')
+    # ax4.legend()
+    # ax4.set_xlabel("Year")
+    # ax4.set_ylabel('energy fraction (%/%)')
+    
+    # # 子图5：占据第2行第1-2列的网格（占两格）
+    # ax5 = fig.add_subplot(gs[1, 0])
+    
+    # 调整布局以防止标签重叠
+    plt.tight_layout()
+
+    # 显示绘图
+    plt.show()
+     
+    # === 保存图片 ===
+    main_directory = "output"
+    sub_directory = os.path.join(main_directory, custom_reward_type)
+    subsub_directory = os.path.join(
+        sub_directory,
+        f"rl_model_{rl_model_name}_network_{network_name}_{total_timesteps_name}",
+    )
+    os.makedirs(subsub_directory, exist_ok=True)
+    filename = f"plot_data_evaluation_four_state_{episode}.png"
+    file_path = os.path.join(subsub_directory, filename)
+    plt.savefig(file_path, bbox_inches="tight", dpi=300)
+    plt.close(fig)
+
 
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "weight_three_obj"
-    rl_model_name = "fixed_action_2_slow"
-    network_name = "Netxxx_no_debug_plot_all_actions"
+    custom_reward_type = "distance_with_normalized_over"
+    rl_model_name = "fixed_action13_case5" # Shift_Backward_30
+    network_name = "default_net"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
@@ -898,16 +1027,43 @@ if __name__ == "__main__":
 
         episode_reward = 0
 
-        obs = env.reset(use_random_reset=False)
+        obs, _ = env.reset(use_random_reset=False)
         # obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
 
-            action = 2
+            action = 13
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
             # action = env.action_space.sample()
+            # === 加载训练好的模型 ===
+            # log_name = "iseec_lx_v5_ste_without_masking_DQN_weight_three_obj_over_Ta_900000_default"
+            # model = DQN.load(f"./model/{log_name}", env=env)
+            # action, _ = model.predict(obs, deterministic=True)
+            # === 对特定的 action 进行平移查看结果变化 ===
+            # action_array = np.array([26, 20, 22, 22, 22, 19, 19, 19, 19, 19, 19, 19, 19, 15, 15, 15, 6, 6, 8, 8,
+            #              20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15,
+            #              15, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 10, 10, 20, 20, 20,
+            #              10, 10, 20, 20, 20, 10, 10, 20, 20, 20, 10, 10, 20, 20, 20, 20, 10, 10, 20,
+            #              20, 20, 20, 20, 10, 8, 8]) # 结尾一般要多加一个数
 
+            # # 向前移动 30 步
+            # shift_forward = np.roll(action_array, -30)
+            # shift_forward[-30:] = action_array[-1]
+
+            # # 向后移动 30 步
+            # shift_backward = np.roll(action_array, 30)
+            # shift_backward[:30] = action_array[0]
+
+            # # 生成 DataFrame
+            # df_shift_30 = pd.DataFrame({
+            #     'Original_Action': action_array,
+            #     'Shift_Forward_30': shift_forward,
+            #     'Shift_Backward_30': shift_backward
+            # })
+            # action = df_shift_30['Shift_Backward_30'][i]
+            # =====================================
+            
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
 
             # if i % 10 == 0:
@@ -943,7 +1099,6 @@ if __name__ == "__main__":
             print(f"累计奖励: {episode_reward}")
             print(f"额外信息: {info}")
             
-
         append_data_episode(episode_reward)
 
         print("---------------------------------------")
@@ -951,7 +1106,7 @@ if __name__ == "__main__":
         
         # === 保存数组储存的数据部分 ===
         # 结果每次保存都是同名
-        data_diy = {
+        data_diy = { # 长度都是统一的 251 
             'Time': env.time,
             "energy_MYbaseline18502100_total_formulated": env.energy_MYbaseline18502100_total_formulated,
             "energy_MYadjusted18502100_total_plus_B3B_plus_ACE3": env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3,
@@ -969,13 +1124,24 @@ if __name__ == "__main__":
             "eta22": env.eta22,
             # self.E11
             # self.E21+self.E22+self.E23+self.E24
+            "net_emission(gtc)": [(x - b - c - d / e) * 44 / 12 for x, b, c, d, e in zip(
+            env.CO2emission_actualFF, env.CO2emission_ACE1, env.CO2emission_ACE2,
+            env.CO2emission_ACE3, env.ratio_net_over_gross)],
+            # "CO2 concentration (ppm)": np.array(total_state)[:, 1] * env.rho_a,  
+            "CO2emission_actualFF": env.CO2emission_actualFF,
+            "CO2emission_ACE1": env.CO2emission_ACE1,
+            "CO2emission_ACE2": env.CO2emission_ACE2,
+            "CO2emission_ACE3": env.CO2emission_ACE3,
+            "ratio_net_over_gross": env.ratio_net_over_gross
         }
+        
         df_data_diy = pd.DataFrame(data_diy)
-        df_data_diy.to_excel('output/iseec_ssp5_MIT_data_diy.xlsx', index=False)
-        print('iseec_ssp5_MIT_data_diy.xlsx 已保存')
+        path_df_data_diy = f'output/iseec_ssp5_MIT_data_diy_{custom_reward_type}_{rl_model_name}.xlsx'
+        df_data_diy.to_excel(path_df_data_diy, index=False)
+        print(f'iseec_ssp5_MIT_data_diy.xlsx 已保存，且保存在 {path_df_data_diy}')
         ##################################
 
-        # 每次 episode 结束时保存数据
+        # # 每次 episode 结束时保存数据
         save_future_data_excel(
             env,
             custom_reward_type,
@@ -1022,6 +1188,16 @@ if __name__ == "__main__":
             total_action_dim1,
             total_action_dim2,
             total_action_dim3
+        )
+        
+        save_plot_evaluation_four_state(
+            env=env,
+            custom_reward_type=custom_reward_type,
+            rl_model_name=rl_model_name,
+            network_name=network_name,
+            episode=episode,
+            total_state=total_state,
+            total_timesteps_name=total_timesteps_diy,
         )
 
         # env.append_data_reward(episode_reward)
