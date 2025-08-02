@@ -1723,7 +1723,7 @@ class IEMEnv(gym.Env):
             raise ValueError("Invalid value for dim3: {}".format(dim3)) 
             
     def reset(
-        self, use_random_reset=True, seed=None, start_state=None
+        self, use_random_reset=True, seed=None, start_state=0
     ):  # 可以单独进行设置
         # 如果提供了随机种子，则设置随机数生成器
         if seed is not None:
@@ -1836,37 +1836,28 @@ class IEMEnv(gym.Env):
         # 对应的是 2016 年的初始数据，2016	1.064859411	859.6220675	132.4912636	1256.997825	0.471187383	15.83579504	2.436276166	13.39951888	47.50738509	50.312
         self.state = np.array(ode_solutions[-1], dtype=np.float64)
 
+        
         # 根据 bool 来考虑是否使用随机扰动
         if use_random_reset:
             # 新增随机扰动的初始状态: 方案 3 年，均匀分布
             self.state[0] = self.state[0] + np.random.uniform(
-                low=-0.104 * 1, high=+0.104 * 1
+                low=-0.104 * 3, high=+0.104 * 3
             )
             self.state[1] = self.state[1] + np.random.uniform(
-                low=-12.750 * 1, high=12.750 * 1
+                low=-12.750 * 3, high=12.750 * 3
             )
-            self.state[2] = self.state[2] + np.random.uniform(
-                low=-1.801 * 1, high=1.801 * 1
-            )
-            self.state[3] = self.state[3] + np.random.uniform(
-                low=-14.930 * 1, high=14.930 * 1
-            )
-            self.state[4] = self.state[4] + np.random.uniform(
-                low=-0.038 * 1, high=0.038 * 1
-            )
-            self.state[5] = self.state[5] + np.random.uniform(
-                low=-18.227 * 1, high=18.227 * 1
-            )
-            self.state[6] = self.state[6] + np.random.uniform(
-                low=-18.599 * 1, high=18.599 * 1
-            )
+            self.state[2] = self.state[2] 
+            self.state[3] = self.state[3] 
+            self.state[4] = self.state[4] 
+            self.state[5] = self.state[5] 
+            self.state[6] = self.state[6] 
             self.state[7] = self.state[7]  # 这几个量波动性不大
             self.state[8] = self.state[8]
             self.state[9] = self.state[9]
         else:
             # 直接使用预热的值
-            self.state[0] = self.state[0]
-            self.state[1] = self.state[1]
+            self.state[0] = self.state[0] + start_state * 0.104
+            self.state[1] = self.state[1] + start_state * 12.750 
             self.state[2] = self.state[2]
             self.state[3] = self.state[3]
             self.state[4] = self.state[4]
@@ -1875,20 +1866,10 @@ class IEMEnv(gym.Env):
             self.state[7] = self.state[7]
             self.state[8] = self.state[8]
             self.state[9] = self.state[9]
-        self.state[0] = self.state[0]
-        self.state[1] = self.state[1]
-        self.state[2] = self.state[2]
-        self.state[3] = self.state[3]
-        self.state[4] = self.state[4]
-        self.state[5] = self.state[5]
-        self.state[6] = self.state[6]
-        self.state[7] = self.state[7]
-        self.state[8] = self.state[8]
-        self.state[9] = self.state[9]    
-
-        # 增加手动设置初始值
-        if start_state is not None:
-            self.state = start_state
+      
+        # # 增加手动设置初始值
+        # if start_state is not None:
+        #     self.state = start_state
 
         self.t = (
             self.control_start_year - 1

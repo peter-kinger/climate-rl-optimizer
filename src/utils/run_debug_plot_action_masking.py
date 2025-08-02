@@ -27,13 +27,11 @@ from envs.iseec_lx_v5_pomdp_without_masking_all_actions import IEMEnv
 from IPython.display import clear_output
 from stable_baselines3 import DQN
 
-
 def init_data():
     """
     初始化数据
     """
     pass
-
 
 def save_data(
     env,
@@ -138,7 +136,10 @@ def save_future_data_excel(
     total_reward_Ta,
     total_reward_Ca,
     total_reward_distance,
-    total_reward_cost_action
+    total_reward_cost_action,
+    total_reward_extra1,
+    total_reward_extra2,
+    total_reward_extra3,
 ):
     """
     保存文件为 xlsx文件, 且内部的数据保存的都是 83 长度的未来时期数据
@@ -167,6 +168,9 @@ def save_future_data_excel(
         "reward_Ca": [],
         "reward_distance": [],
         "reward_cost_action": [],
+        "reward_extra1": [],
+        "reward_extra2": [],
+        "reward_extra3": [],
     }
 
     # 遍历所有步骤收集数据
@@ -199,6 +203,10 @@ def save_future_data_excel(
         data["reward_Ca"].append(total_reward_Ca[step])
         data["reward_distance"].append(total_reward_distance[step])
         data["reward_cost_action"].append(total_reward_cost_action[step])
+        data["reward_extra1"].append(total_reward_extra1[step])
+        data["reward_extra2"].append(total_reward_extra2[step])
+        data["reward_extra3"].append(total_reward_extra3[step])
+        
         data["done"].append(total_done[step])
 
     df = pd.DataFrame(data)
@@ -983,8 +991,8 @@ def save_plot_evaluation_four_state(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "distance_with_normalized_over"
-    rl_model_name = "fixed_action13_case5" # Shift_Backward_30
+    custom_reward_type = "weight_three_obj_over"
+    rl_model_name = "DQN_re" # Shift_Backward_30 / fiexed_action13
     network_name = "default_net"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
@@ -1014,6 +1022,7 @@ if __name__ == "__main__":
         total_reward = []
         total_done = []
 
+        # 这是来自于 state_history 里面的
         total_action_dim1 = []
         total_action_dim2 = []
         total_action_dim3 = []
@@ -1021,25 +1030,28 @@ if __name__ == "__main__":
         total_reward_Ca = []    
         total_reward_distance = []
         total_reward_cost_action = []
+        total_reward_extra1 = []
+        total_reward_extra2 = []
+        total_reward_extra3 = []
         
         # total_state_diy_energy_MYadjusted18502100_total_plus_B3B_plus_ACE3
         ##################################
 
         episode_reward = 0
 
-        obs, _ = env.reset(use_random_reset=False)
+        obs, _ = env.reset(use_random_reset=False, seed=42, start_state=0)
         # obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
 
-            action = 13
+            # action = 13
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
             # action = env.action_space.sample()
             # === 加载训练好的模型 ===
-            # log_name = "iseec_lx_v5_ste_without_masking_DQN_weight_three_obj_over_Ta_900000_default"
-            # model = DQN.load(f"./model/{log_name}", env=env)
-            # action, _ = model.predict(obs, deterministic=True)
+            log_name = "iseec_lx_v5_ste_without_masking_DQN_weight_three_obj_over_re_900000_default.zip"
+            model = DQN.load(f"./model/{log_name}", env=env)
+            action, _ = model.predict(obs, deterministic=True)
             # === 对特定的 action 进行平移查看结果变化 ===
             # action_array = np.array([26, 20, 22, 22, 22, 19, 19, 19, 19, 19, 19, 19, 19, 15, 15, 15, 6, 6, 8, 8,
             #              20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15,
@@ -1092,6 +1104,9 @@ if __name__ == "__main__":
             total_reward_Ca.append(env.state_history["reward_Ca"][-1])
             total_reward_distance.append(env.state_history["reward_distance"][-1])
             total_reward_cost_action.append(env.state_history["reward_cost_action"][-1])
+            total_reward_extra1.append(env.state_history["reward_extra1"][-1])
+            total_reward_extra2.append(env.state_history["reward_extra2"][-1])
+            total_reward_extra3.append(env.state_history["reward_extra3"][-1])
 
             # 打印每次运行结果
             print(i + env.model_init_year)
@@ -1132,7 +1147,12 @@ if __name__ == "__main__":
             "CO2emission_ACE1": env.CO2emission_ACE1,
             "CO2emission_ACE2": env.CO2emission_ACE2,
             "CO2emission_ACE3": env.CO2emission_ACE3,
-            "ratio_net_over_gross": env.ratio_net_over_gross
+            "ratio_net_over_gross": env.ratio_net_over_gross,
+            "re_energy_intensity": env.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3 / env.energy_MYbaseline18502100_total_formulated,
+            "energy_MYadjusted18502100_total": env.energy_MYadjusted18502100_total,
+            "energy_MYadjusted18502100_total_plus_B3B": env.energy_MYadjusted18502100_total_plus_B3B,
+            "k21": env.k21,
+            "k22": env.k22,
         }
         
         df_data_diy = pd.DataFrame(data_diy)
@@ -1159,7 +1179,10 @@ if __name__ == "__main__":
             total_reward_Ta,
             total_reward_Ca,
             total_reward_distance,
-            total_reward_cost_action
+            total_reward_cost_action,
+            total_reward_extra1,
+            total_reward_extra2,
+            total_reward_extra3
         )
 
         save_plot_SSM_future_data(

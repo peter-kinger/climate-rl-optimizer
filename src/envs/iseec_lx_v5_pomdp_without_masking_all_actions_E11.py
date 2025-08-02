@@ -9,6 +9,7 @@
 """
 
 # here put the import lib
+import os
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -20,12 +21,11 @@ from matplotlib.gridspec import GridSpec
 import math
 import numpy as np
 from IPython.display import clear_output
-import matplotlib.pyplot as plt
 from stable_baselines3.common.env_checker import check_env
 import torch
 import random
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import datetime
  
 class IEMEnv(gym.Env):
     def __init__(
@@ -35,6 +35,7 @@ class IEMEnv(gym.Env):
         control_start_year=2017,
         render_mode_diy=None,
         pomdp_state_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        reward_weights=None,
         **kwargs
     ):
         super(IEMEnv, self).__init__()
@@ -67,6 +68,108 @@ class IEMEnv(gym.Env):
 
         # 3. 奖励设置
         self.reward_function = self.get_reward_function(reward_type)
+        
+        # 从外部传入的参数来进行赋值
+        self.reward_weights = {
+            'reward_weight_three_obj': {
+                'Ta': 10,
+                'Ca': 10,
+                'energy': 15
+            },
+            'reward_weight_three_obj_over': {
+                'Ta': 2,
+                'Ca': 8,
+                'energy': 15,
+                'over': 5,
+                'time':2099,
+                'end': 20 # 直接加载到很大，完成你的目标，其他是这基础的事情
+            },
+            'reward_weight_three_obj_over_TaCaE11': {
+                'Ta': 2,
+                'Ca': 8,
+                'E11': 4,
+                'over': 5,
+                'time':2099,
+                'end': 20 # 直接加载到很大，完成你的目标，其他是这基础的事情
+            },
+            'reward_distance_without_normalized':
+            {
+                'Ta': 10,
+                'Ca': 10,
+                'energy': 15
+            },
+            'reward_distance_with_normalized':
+            {
+                'Ta': 10,
+                'Ca': 10,
+                'energy': 15
+            },
+            'reward_distance_with_normalized_over': {
+                'Ta': 10,
+                'Ca': 10,
+                'energy': 15,
+                'over': -1
+            },
+            'reward_weight_three_obj_over_Ta': {
+                'Ta': 5,
+                # 'Ca': 10,
+                # 'energy': 15,
+                'over': 100
+            },
+            'reward_weight_three_obj_over_Ca': {
+                # 'Ta': 10,
+                'Ca': 3,
+                'time':2099,
+                'over': 20
+            },
+            'reward_weight_three_obj_over_energy': {
+                # 'Ta': 10,
+                # 'Ca': 10,
+                'energy': 5,
+                'over': 40,
+                'time': 2098
+            },
+            'reward_weight_three_obj_over_energy_end': {
+                # 'Ta': 10,
+                # 'Ca': 10,
+                'energy': 2,
+                'over': 20,
+                'time': 2098
+            },
+            'reward_distance_with_normalized_over_Ta': {
+                'Ta': 10,
+                # 'Ca': 10,
+                # 'energy': 15,
+                'over': -1
+            },
+            'reward_distance_with_normalized_over_Ca': {
+                # 'Ta': 10,
+                'Ca': 10,
+                # 'energy': 15,
+                'over': -1
+            },
+            'reward_distance_with_normalized_over_energy': {
+                # 'Ta': 10,
+                # 'Ca': 10,
+                'energy': 15,
+                # 'over': -1
+            },
+            'reward_weight_three_obj_over_E11_most': {
+                # 'Ta': 10,
+                # 'Ca': 10,
+                'E11': 2,
+                # 'over': 20,
+                # 'time': 2098
+            },
+            'reward_weight_three_obj_over_E11_most_cost': {
+                # 'Ta': 10,
+                # 'Ca': 10,
+                'E11': 2,
+                'cost_of_action': 0.05
+                # 'over': 20,
+                # 'time': 2098
+            },
+        }
 
         # 4. 其他固定参数
         self.max_steps = self.model_end_year - self.model_init_year
@@ -124,26 +227,6 @@ class IEMEnv(gym.Env):
             torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
-
-    # component of other
-    @np.vectorize
-    def compactification(x, x_mid):
-        if x == 0:
-            return 0
-        if x == np.infty:
-            return 1
-
-        return x / (x + x_mid)
-
-    @np.vectorize
-    def inv_compactification(y, x_mid):
-        if y == 0:
-            return 0.0
-        if np.allclose(
-            y, 1
-        ):  # rtol: 相对容差（默认 1e-05）atol: 绝对容差（默认 1e-08）
-            return np.infty
-        return x_mid * y / (1 - y)
 
     ################# Custom ENV 部分 ############################
     def simulate_time(self):
@@ -234,7 +317,6 @@ class IEMEnv(gym.Env):
         - CO2emission_baseline18502100_LU
         - GDP_formulated
         - POP_adopted
-
 
         模型结果对比需要的数据-历史：
         NSM 验证
@@ -366,17 +448,15 @@ class IEMEnv(gym.Env):
             if time < 2015:
                 re = 1
             else:
-                # re = np.exp(-0.005 * (1 + T_a**1) * (time - 2016)) / np.exp(
-                #     -0.005 * (time - 2016)
-                # )
+                re = np.exp(-0.005 * (1 + T_a**1) * (time - 2016)) / np.exp(
+                    -0.005 * (time - 2016)
+                )
                 # re = np.exp(-self.energy_efficiency_rate * (1 + T_a**1) * (time - 2016)) / np.exp(
                 #     -self.energy_efficiency_rate * (time - 2016) # rl 部分
                 # )
-                re = np.exp(-self.re_temperature_warm_rate * (1 + T_a**1) * (time - 2016)) / np.exp(
-                    - self.re_temperature_warm_rate * (time - 2016)
-                )
-
-                # re =   np.exp(-0.005*(T_a**1)*(time-2016))
+                
+                # re =   np.exp(-self.re_temperature_warm_rate*(T_a**1)*(time-2016))
+                
                 # re =   np.exp(-0.005*(T_a-1))
                 # re = 1 # case 10, without energy efficienty
                 if re < 0.7:
@@ -453,9 +533,10 @@ class IEMEnv(gym.Env):
             else:
                 ################ DRL 管控部分 ################
                 # if self.taoACE_drl == 0:
-                taoACE1 = 10 * np.exp(-1 * (T_a - 1.0))
-                taoACE2 = 10 * np.exp(-1 * (T_a - 1.5))
-                taoACE3 = 10 * np.exp(-1 * (T_a - 2.0))
+                taoACE1 = 10 * np.exp(-1 * (T_a - 1.0 ))
+                taoACE2 = 10 * np.exp(-1 * (T_a - 1.5 ))
+                taoACE3 = 10 * np.exp(-1 * (T_a - 2.0 ))
+                # taoACE3 = 10 * np.exp(-1 * (T_a - 2.0 + self.taoACE_temperature_warm_rate))
                 # else:
                 #     taoACE1 = 10 * np.exp(-1 * (T_a + 0.6 - 1.0))
                 #     taoACE2 = 10 * np.exp(-1 * (T_a + 0.6 - 1.5))
@@ -745,7 +826,13 @@ class IEMEnv(gym.Env):
         # # # # # #  E21- Renewable using current technology (Solar and Wind)
         ################ DRL 管控部分 ################
         # if self.eta0_21_drl == 0:
-        eta0_21 = 1 / 100  # 2 or 0.1
+        # eta0_21 = 1 / 100  # 2 or 0.1
+        if self.eta0_21_tech == 0.1 / 100:
+            eta0_21 = 0.1 / 100
+        elif self.eta0_21_tech == 1 / 100:
+            eta0_21 = 1 / 100
+        elif self.eta0_21_tech == 2 / 100:
+            eta0_21 = 2 / 100
         # else:
         #     eta0_21 = 2 / 100
             
@@ -766,8 +853,11 @@ class IEMEnv(gym.Env):
 
             ################ DRL 管控部分 ################
             # if self.taoDF21_drl == 0:
+            # self.taoDF21.append(
+            #     50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
+            # )  # X2 sensitivity test July 17, 2020
             self.taoDF21.append(
-                50 / 2 / (1 + 2 * ((T_a + 0.0) ** 2))
+                self.taoDF21_b1 / (1 + self.taoDF21_b2_temperature_warm_rate * ((T_a + 0.0) ** 2))
             )  # X2 sensitivity test July 17, 2020
             # else:
             #     self.taoDF21.append(
@@ -861,7 +951,13 @@ class IEMEnv(gym.Env):
         # # # # # #  E22: Renewable Using New Technology
         ################ DRL 管控部分 ################
         # if self.eta0_22_drl == 0:
-        eta0_22 = 1 / 100  # 0.1 or 2
+        # eta0_22 = 1 / 100  # 0.1 or 2
+        if self.eta0_22_tech == 0.1 / 100:
+            eta0_22 = 0.1 / 100
+        elif self.eta0_22_tech == 1 / 100:
+            eta0_22 = 1 / 100
+        elif self.eta0_22_tech == 2 / 100:
+            eta0_22 = 2 / 100
         # else:
         #     eta0_22 = 2 / 100
         ############################################
@@ -875,7 +971,9 @@ class IEMEnv(gym.Env):
 
             ################ DRL 管控部分 ################
             # if self.taoDV22_temp_drl == 0:
-            taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
+            # taoDV22_temp = 30 / (1 + (T_a + 0.0) ** 2)  # +0.6
+            # === 温升敏感性 ===
+            taoDV22_temp = self.taoDV22_response_time / (1 + (T_a + 0.0) ** self.taoDV22_temperature_warm_rate)  # +0.6
             # else:
             #     taoDV22_temp = 30 / (1 + (T_a + 0.6) ** 2)  # +0.6
             ############################################
@@ -1034,6 +1132,8 @@ class IEMEnv(gym.Env):
             t=[self.t, next_t],
             mxstep=50000,
         ) # 获取交互的部分
+        
+        # TODO 如果要观测其他状态直接在这里添加即可，组成新的状态
        
         # 确保返回的是 numpy 数组(也就是环境的子集，但实际上这里有大量的转换空间可以操作)
         return np.array(ode_solutions[-1], dtype=np.float64) 
@@ -1113,6 +1213,16 @@ class IEMEnv(gym.Env):
 
         return (state - 52.85234) / (1900 - 52.85234)
     
+    def normalized_energy_all(self, state=None):
+        """Normalize the energy state variable energy_all"""
+
+        return (state - 500) / (2500 - 500)
+    
+    def normalized_E11_all(self, state=None):
+        """Normalize the energy state variable E11_all"""
+        # 取得的是理论的最高值和最低值（通过 energy_MYbaseline18502100_total_formulated 理论值得到）
+        return (state - 0) / (1777 - 0) 
+
     def z_score_normalized_state(self, arr):
         """Z-score normalization of the state array"""
         mean = np.mean(arr) # 得到是数值
@@ -1193,15 +1303,135 @@ class IEMEnv(gym.Env):
 
             r_total = w1 * r_Ta + w2 * r_Ca + distance  # 距离越小奖励越高
             
+            self.state_history["reward_Ta"].append(w1 * r_Ta) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(w1 * r_Ta)
+            self.state_history["reward_distance"].append(distance)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = r_Ta * w1
+            self.reward_dim2 = r_Ca * w2
+            self.reward_dim3 = distance
+            
+            return r_total  # 距离越小奖励越高
+        
+        def reward_PB_compute_over_cost():
+            # state_now, state_target: np.array([T_a, C_a])
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            state_now = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])  # 理想状态
+            
+            r_Ta = 0
+            r_Ca = 0 
+            distance = 0
+            w1 = 0.5  # 温度的权重
+            w2 = 0.5  # 碳浓度的权重
+            
+            w_cost_of_action = 0
+            
+            if T_a < 1.5 and C_a < 945:
+                distance = np.linalg.norm(state_now - state_target) * 0.1
+                w_cost_of_action = 0.5
+                # TODO 增加上一个回合的反馈
+            else:
+                if T_a > 1.5:
+                   r_Ta = - (self.normalized_state_Ta(T_a) - self.normalized_state_Ta(1.5)) * 10 # 奖励函数，温度超过 1.5 时的惩罚
+                   w_cost_of_action = 0.5
+                if C_a > 945:
+                   r_Ca = - (self.normalized_state_Ca(C_a) - self.normalized_state_Ca(945)) * 10 # 奖励函数，碳浓度超过 945 时的惩罚
+                   w_cost_of_action = 0.5
+
+            # Calculate actions cost based on the action
+            cost_of_action1 = 0
+            cost_of_action2 = 0
+            cost_of_action3 = 0
+            
+            dim1, dim2, dim3 = self.decode_action_to_multi_dim(self.action_cost_policy_cal)
+            if dim1 == 2:
+                cost_of_action1 = 10 # 104250 
+            if dim2 == 2:
+                cost_of_action2 = 14 # 142440
+            if dim3 == 2:
+                cost_of_action3 = 4 # 47220
+
+            # Weighted cost
+            # w_cost = [0.35, 0.25, 0.25]  # Weights for action1, action2, action3
+            # C_action = sum(w * c for w, c in zip(w_cost, [cost_of_action1, cost_of_action2, cost_of_action3]))
+            Cost_action = (cost_of_action1 + cost_of_action2 + cost_of_action3) * w_cost_of_action
+
+            r_total = (w1 * r_Ta + w2 * r_Ca + distance) -  Cost_action   # 距离越小奖励越高
+
             self.state_history["reward_Ta"].append(r_Ta)
             self.state_history["reward_Ca"].append(r_Ca)
             self.state_history["reward_distance"].append(distance)
+            self.state_history["reward_cost_action"].append(Cost_action)
+
+            # 可以记录里面的 r_ta、 r_ca 和 distance
             
+            return r_total  # 距离越小奖励越高
+        
+        def reward_PB_compute_over_cost_management():
+            # state_now, state_target: np.array([T_a, C_a])
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            state_now = np.array([T_a, C_a])
+            state_target = np.array([1.5, 945])  # 理想状态
+            
+            r_Ta = 0
+            r_Ca = 0 
+            distance = 0
+            w1 = 0.5  # 温度的权重
+            w2 = 0.5  # 碳浓度的权重
+            
+            cost_of_action1 = 0
+            cost_of_action2 = 0
+            cost_of_action3 = 0
+            
+            # Calculate actions cost based on the action   
+            dim1, dim2, dim3 = self.decode_action_to_multi_dim(self.action_cost_policy_cal)
+            if dim1 == 2:
+                cost_of_action1 = 0.33
+            if dim2 == 2:
+                cost_of_action2 = 0.33
+            if dim3 == 0:
+                cost_of_action3 = 0.33
+                
+            w_cost_of_action = (1- (cost_of_action1 + cost_of_action2 + cost_of_action3)) 
+            
+            if T_a < 1.5 and C_a < 945:
+                distance = np.linalg.norm(state_now - state_target) * 0.1
+                distance = distance * w_cost_of_action
+                # TODO 增加上一个回合的反馈
+            else:
+                if T_a > 1.5:
+                   r_Ta = - (self.normalized_state_Ta(T_a) - self.normalized_state_Ta(1.5)) * 10 # 奖励函数，温度超过 1.5 时的惩罚
+                   r_Ta = r_Ta * (1 + (cost_of_action1 + cost_of_action2 + cost_of_action3))
+                if C_a > 945:
+                   r_Ca = - (self.normalized_state_Ca(C_a) - self.normalized_state_Ca(945)) * 10 # 奖励函数，碳浓度超过 945 时的惩罚
+                   r_Ca = r_Ca * (1 + (cost_of_action1 + cost_of_action2 + cost_of_action3))
+
+            # Weighted cost
+            # w_cost = [0.35, 0.25, 0.25]  # Weights for action1, action2, action3
+            # C_action = sum(w * c for w, c in zip(w_cost, [cost_of_action1, cost_of_action2, cost_of_action3]))
+            Cost_action = 0
+
+            r_total = (w1 * r_Ta + w2 * r_Ca + distance)   # 距离越小奖励越高
+
+            self.state_history["reward_Ta"].append(r_Ta)
+            self.state_history["reward_Ca"].append(r_Ca)
+            self.state_history["reward_distance"].append(distance)
+            self.state_history["reward_cost_action"].append(Cost_action)
+
             # 可以记录里面的 r_ta、 r_ca 和 distance
             
             return r_total  # 距离越小奖励越高
         
         def reward_PB_compute_over_1():
+            """改变了参数
+
+            Returns:
+                _type_: _description_
+            """
             # state_now, state_target: np.array([T_a, C_a])
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             
@@ -1235,6 +1465,11 @@ class IEMEnv(gym.Env):
             return r_total  # 距离越小奖励越高
         
         def reward_PB_compute_over_2():
+            """改变了参数
+
+            Returns:
+                _type_: _description_
+            """
             # state_now, state_target: np.array([T_a, C_a])
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             
@@ -1268,6 +1503,11 @@ class IEMEnv(gym.Env):
             return r_total  # 距离越小奖励越高
         
         def reward_PB_compute_over_add():
+            """增加了对基础 PB 距离的计算
+
+            Returns:
+                _type_: _description_
+            """
             # state_now, state_target: np.array([T_a, C_a])
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
             
@@ -1301,49 +1541,6 @@ class IEMEnv(gym.Env):
             
             return r_total  # 距离越小奖励越高
         
-        def reward_PB_compute_over_add_end():
-            pass
-        
-        def reward_PB_compute_over_low_threshold():
-            pass
-        
-        def reward_PB_compute_over_weight():
-            """_summary_
-            修正：1、distance 的weights ，变小使得引导合理
-            Returns:
-                _type_: _description_
-            """
-            # state_now, state_target: np.array([T_a, C_a])
-            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
-            
-            state_now = np.array([T_a, C_a])
-            state_target = np.array([1.5, 945])  # 理想状态
-            
-            r_Ta = 0
-            r_Ca = 0 
-            distance = 0
-            w1 = 0.5  # 温度的权重
-            w2 = 0.5  # 碳浓度的权重
-            
-            if T_a < 1.5 and C_a < 945:
-                distance = np.linalg.norm(state_now - state_target) * 0.1 
-                # TODO 增加上一个回合的反馈
-            else:
-                if T_a > 1.5:
-                   r_Ta = - self.normalized_state_Ta(T_a - 1.5) # 奖励函数，温度超过 1.5 时的惩罚
-                if C_a > 945:
-                   r_Ca = - self.normalized_state_Ca(C_a - 945) # 奖励函数，碳浓度超过 945 时的惩罚
-
-            r_total = w1 * r_Ta + w2 * r_Ca + distance  # 距离越小奖励越高
-            
-            self.state_history["reward_Ta"].append(r_Ta)
-            self.state_history["reward_Ca"].append(r_Ca)
-            self.state_history["reward_distance"].append(distance)
-            
-            # 可以记录里面的 r_ta、 r_ca 和 distance
-            
-            return r_total  # 距离越小奖励越高
-        
         def reward_pb_distance_baseline():
             """将当前计算的奖励减去默认动作下的奖励，
 
@@ -1355,6 +1552,269 @@ class IEMEnv(gym.Env):
             """
             pass
         
+        def reward_weight_three_obj():
+            """基于行星边界值和能源距离来算
+            """
+            w = self.reward_weights['reward_weight_three_obj']
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            # 计算奖励
+            reward = (                
+                w['Ta'] * delta_PB_Ta 
+                + w['Ca'] * delta_PB_Ca 
+                + w['energy'] * delta_energy
+            )
+            
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            self.state_history["reward_distance"].append(w['energy'] * delta_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            self.reward_dim2 = w['Ca'] * delta_PB_Ca 
+            self.reward_dim3 = w['energy'] * delta_energy
+            
+            return reward
+        
+        def reward_weight_three_obj_over():
+            """基于行星边界值和能源距离来算
+            """
+            w = self.reward_weights['reward_weight_three_obj_over']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            delta_energy = self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850]) - self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850])
+            
+            reward = 0
+            r_Ta = 0
+            r_Ca = 0
+            r_energy = 0
+            r_over_Ta = 0
+            r_over_Ca = 0 
+            
+            if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                r_Ta = w['Ta'] * delta_PB_Ta
+                r_Ca = w['Ca'] * delta_PB_Ca
+                r_energy = w['energy'] * delta_energy
+                
+                reward = (                
+                    r_Ta
+                    + r_Ca
+                    + r_energy
+                )
+            else:
+                if T_a > 1.5:
+                    r_over_Ta = w["over"] * delta_PB_Ta 
+                    reward += r_over_Ta
+                if C_a > 945:
+                    r_over_Ca = w["over"] * delta_PB_Ca
+                    reward += r_over_Ca
+
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(r_Ta) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(r_Ca)
+            self.state_history["reward_distance"].append(r_energy)
+            self.state_history["reward_extra1"].append(r_over_Ta)
+            self.state_history["reward_extra2"].append(r_over_Ca)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = r_Ta
+            self.reward_dim2 = r_Ca
+            self.reward_dim3 = r_energy
+            # 增加维度
+            self.reward_dim4 = r_over_Ta 
+            self.reward_dim5 = r_over_Ca
+            
+            return reward
+        
+        def reward_weight_three_obj_over_TaCaE11():
+            """基于行星边界值和能源距离来算
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_TaCaE11']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            E11_normalized = self.normalized_E11_all( self.energy_MYadjusted18502100_total_plus_B3B[-1] -E12 -E21 - E22 - E23 - E24 )
+            
+            reward = 0
+            r_Ta = 0
+            r_Ca = 0
+            r_E11 = 0
+            r_over_Ta = 0
+            r_over_Ca = 0 
+            
+            if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                r_Ta = w['Ta'] * delta_PB_Ta
+                r_Ca = w['Ca'] * delta_PB_Ca
+                r_E11 = w['E11'] * (E11_normalized)
+                
+                reward = (                
+                    r_Ta
+                    + r_Ca
+                    + r_E11
+                )
+            else:
+                if T_a > 1.5:
+                    r_over_Ta = w["over"] * delta_PB_Ta 
+                    reward += r_over_Ta
+                if C_a > 945:
+                    r_over_Ca = w["over"] * delta_PB_Ca
+                    reward += r_over_Ca
+
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(r_Ta) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(r_Ca)
+            self.state_history["reward_distance"].append(r_E11)
+            self.state_history["reward_extra1"].append(r_over_Ta)
+            self.state_history["reward_extra2"].append(r_over_Ca)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = r_Ta
+            self.reward_dim2 = r_Ca
+            self.reward_dim3 = r_E11
+            # 增加维度
+            self.reward_dim4 = r_over_Ta 
+            self.reward_dim5 = r_over_Ca
+            
+            return reward
+
+        def reward_distance_without_normalized():
+            """计算未归一化状态下的距离范数奖励
+            """
+            w = self.reward_weights['reward_distance_without_normalized']
+           
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            delta_Ta = 1.5 - T_a
+            delta_Ca = 945 - C_a
+            delta_energy = (
+                self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850] 
+                - self.energy_MYbaseline18502100_total_formulated[self.t-1850]
+            )
+
+            # 加权距离平方-距离范数
+            distance_squared = (
+                w['Ta'] * (delta_Ta) ** 2
+                + w['Ca'] * (delta_Ca) ** 2
+                + w['energy'] * (delta_energy) ** 2
+            )
+
+            # 计算奖励
+            reward = distance_squared
+            
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(w['Ta'] * delta_Ta)
+            self.state_history["reward_Ca"].append(w['Ca'] * delta_Ca)
+            self.state_history["reward_distance"].append(w['energy'] * delta_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = w['Ta'] * delta_Ta
+            self.reward_dim2 = w['Ca'] * delta_Ca
+            self.reward_dim3 = w['energy'] * delta_energy
+
+            return reward
+        
+        def reward_distance_with_normalized():
+            """计算归一化后状态的距离范数奖励
+            """
+            w = self.reward_weights['reward_distance_without_normalized']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            # 加权距离平方-距离范数
+            distance_squared = (
+                w['Ta'] * (delta_PB_Ta) ** 2
+                + w['Ca'] * (delta_PB_Ca) ** 2
+                + w['energy'] * (delta_energy) ** 2
+            )
+            
+            # 计算奖励
+            reward = distance_squared
+            
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta)
+            self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca)
+            self.state_history["reward_distance"].append(w['energy'] * delta_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = w['Ta'] * delta_PB_Ta
+            self.reward_dim2 = w['Ca'] * delta_PB_Ca
+            self.reward_dim3 = w['energy'] * delta_energy
+
+            return reward
+        
+        def reward_distance_with_normalized_over():
+            """计算归一化后状态的距离范数奖励
+            """
+            w = self.reward_weights['reward_distance_with_normalized_over']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # 平时是负的值
+            delta_energy = self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850]) - self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850])
+            
+            reward = 0
+            r_Ta = 0
+            r_Ca = 0
+            r_energy = 0
+            r_over_Ta = 0
+            r_over_Ca = 0 
+            distance_squared = 0
+
+            if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                r_Ta = w['Ta'] * delta_PB_Ta ** 2
+                r_Ca = w['Ca'] * delta_PB_Ca ** 2
+                r_energy = w['energy'] * delta_energy ** 2
+                
+                # 加权距离平方-距离范数
+                distance_squared = np.sqrt(
+                    r_Ta + r_Ca + r_energy
+                )
+
+                reward = distance_squared
+            else:
+                if T_a > 1.5:
+                    r_over_Ta = w["over"] * delta_PB_Ta 
+                    reward += r_over_Ta 
+                if C_a > 945:
+                    r_over_Ca = w["over"] * delta_PB_Ca
+                    reward += r_over_Ca
+
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(r_Ta) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(r_Ca)
+            self.state_history["reward_distance"].append(r_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = r_Ta
+            self.reward_dim2 = r_Ca
+            self.reward_dim3 = r_energy
+            # 增加维度
+            self.reward_dim4 = r_over_Ta 
+            self.reward_dim5 = r_over_Ca
+            self.reward_dim6 = distance_squared
+            
+            return reward
+
         def reward_multi_objective_all_T_a_Ca_exp122_weights_change_more_ta():
             """变动：更改了weights具体的值"""
             T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
@@ -1457,8 +1917,393 @@ class IEMEnv(gym.Env):
                 reward = -penalty  # 奖励为负值
 
             return reward
+        
+        def reward_weight_three_obj_over_Ta():
+            """基于行星边界值和能源距离来算, 单目标
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_Ta']
             
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            # delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            # - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            r_Ta = 0
+            r_over_Ta = 0
+            
+            if self.t < 2099:
+                r_Ta = w['Ta'] * delta_PB_Ta
+                reward = r_Ta
+            else:
+                r_over_Ta = w["over"] * delta_PB_Ta
+                reward = r_over_Ta
 
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(r_Ta) # 基于已有的 reward 已经可以进行计算了
+            # self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            # self.state_history["reward_distance"].append(w['energy'] * delta_energy)
+            self.state_history["reward_extra1"].append(r_over_Ta)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance(外部的 episode 训练)
+            self.reward_dim1 = r_Ta
+            self.reward_dim2 = r_over_Ta
+            # self.reward_dim3 = w['energy'] * delta_energy
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            
+            return reward
+        
+        def reward_weight_three_obj_over_Ca():
+            """基于行星边界值和能源距离来算, 单目标
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_Ca']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            # - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            r_Ca = 0
+            r_over_Ca = 0
+            
+            # 计算奖励
+            if self.t < w['time']:
+                r_Ca = w['Ca'] * delta_PB_Ca
+                reward = (r_Ca)
+            else: 
+                # 更改为了末期几年的温控
+                r_over_Ca = w["over"] * delta_PB_Ca
+                reward = (r_over_Ca)
+                
+            # 记录分维度奖励（render里面的）
+            # self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            self.state_history["reward_Ca"].append(r_Ca)
+            self.state_history["reward_distance"].append(r_over_Ca)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            self.reward_dim2 = r_Ca
+            # self.reward_dim3 = w['energy'] * delta_energy
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            self.reward_dim5 = r_over_Ca
+            
+            return reward
+        
+        def reward_weight_three_obj_over_energy():
+            """基于行星边界值和能源距离来算, 单目标
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_energy']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_energy = self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850]) - self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850])
+            
+            reward = 0
+            r_energy = 0
+            r_end_energy = 0
+            
+            if self.t < w['time']:
+                r_energy = w['energy'] * delta_energy
+                reward = (r_energy)
+            else:
+                r_end_energy = w['over'] * delta_energy
+                reward = (r_end_energy)
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            # self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            self.state_history["reward_distance"].append(r_energy)
+            self.state_history["reward_extra1"].append(r_end_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            # self.reward_dim2 = w['Ca'] * delta_PB_Ca 
+            self.reward_dim3 = r_energy
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            self.reward_dim6 = r_end_energy
+            
+            return reward
+        
+        def reward_weight_three_obj_over_energy_end():
+            w = self.reward_weights['reward_weight_three_obj_over_energy_end']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_energy = self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850]) - self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850])
+            
+            reward = 0
+            r_energy = 0
+            r_end_energy = 0
+            
+            if self.t < w['time']:
+                r_energy = w['energy'] * delta_energy
+                reward = (r_energy)
+            else:
+                r_end_energy = w['over'] * delta_energy
+                reward = (r_end_energy)
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            # self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            self.state_history["reward_distance"].append(r_energy)
+            self.state_history["reward_extra1"].append(r_end_energy)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            # self.reward_dim2 = w['Ca'] * delta_PB_Ca 
+            self.reward_dim3 = r_energy
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            self.reward_dim6 = r_end_energy
+            
+            return reward
+        
+        def reward_distance_with_normalized_over_Ta():
+            """计算归一化后状态的距离范数奖励
+            """
+            w = self.reward_weights['reward_distance_with_normalized_over_Ta']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            # delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            # - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            distance_squared = 0
+
+            if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                # 加权距离平方-距离范数
+                distance_squared = (
+                    w['Ta'] * (delta_PB_Ta) ** 2
+                    # + w['Ca'] * (delta_PB_Ca) ** 2
+                    # + w['energy'] * (delta_energy) ** 2
+                )
+                reward = distance_squared
+            else:
+                if T_a > 1.5:
+                    reward += w["over"] * delta_PB_Ta 
+                # if C_a > 945:
+                #     reward += w["over"] * delta_PB_Ca
+
+            # 记录分维度奖励
+            self.state_history["reward_Ta"].append(w['Ta'] * (delta_PB_Ta) ** 2)
+            # self.state_history["reward_Ca"].append(w['Ca'] * (delta_PB_Ca) ** 2)
+            # self.state_history["reward_distance"].append(w['energy'] * (delta_energy) ** 2)
+
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            self.reward_dim1 = w['Ta'] * (delta_PB_Ta) ** 2
+            # self.reward_dim2 = w['Ca'] * (delta_PB_Ca) ** 2
+            # self.reward_dim3 = w['energy'] * (delta_energy) ** 2
+            # 增加维度
+            self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            
+            return reward
+        
+        def reward_distance_with_normalized_over_Ca():
+            """计算归一化后状态的距离范数奖励, 单目标
+            """
+            w = self.reward_weights['reward_distance_with_normalized_over_Ca']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) 
+            # - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            distance_squared = 0
+
+            if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                # 加权距离平方-距离范数
+                distance_squared = (
+                    # w['Ta'] * (delta_PB_Ta) ** 2
+                    w['Ca'] * (delta_PB_Ca) ** 2
+                    # + w['energy'] * (delta_energy) ** 2
+                )
+                reward = distance_squared
+            else:
+                # if T_a > 1.5:
+                #     reward += w["over"] * delta_PB_Ta 
+                if C_a > 945:
+                    reward += w["over"] * delta_PB_Ca
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * (delta_PB_Ta) ** 2)
+            self.state_history["reward_Ca"].append(w['Ca'] * (delta_PB_Ca) ** 2)
+            # self.state_history["reward_distance"].append(w['energy'] * (delta_energy) ** 2)
+
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * (delta_PB_Ta) ** 2
+            self.reward_dim2 = w['Ca'] * (delta_PB_Ca) ** 2
+            # self.reward_dim3 = w['energy'] * (delta_energy) ** 2
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            self.reward_dim5 = w["over"] * delta_PB_Ca
+            
+            return reward
+        
+        def reward_distance_with_normalized_over_energy():
+            """计算归一化后状态的距离范数奖励, 单目标
+            """
+            w = self.reward_weights['reward_distance_with_normalized_over_energy']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            # delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            distance_squared = 0
+
+            # if T_a < 1.5 and C_a < 945:
+                # 计算奖励
+                # 加权距离平方-距离范数
+            distance_squared = (
+                # w['Ta'] * (delta_PB_Ta) ** 2
+                # w['Ca'] * (delta_PB_Ca) ** 2
+                w['energy'] * (delta_energy) ** 2
+            )
+            reward = distance_squared
+            # else:
+                # if T_a > 1.5:
+                #     reward += w["over"] * delta_PB_Ta 
+                # if C_a > 945:
+                #     reward += w["over"] * delta_PB_Ca
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * (delta_PB_Ta) ** 2)
+            # self.state_history["reward_Ca"].append(w['Ca'] * (delta_PB_Ca) ** 2)
+            self.state_history["reward_distance"].append(w['energy'] * (delta_energy) ** 2)
+
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * (delta_PB_Ta) ** 2
+            # self.reward_dim2 = w['Ca'] * (delta_PB_Ca) ** 2
+            self.reward_dim3 = w['energy'] * (delta_energy) ** 2
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            
+            return reward
+        
+        def reward_discrete_pb_ta():
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(T_a)
+            reward = 0
+            if self.t < 2099:
+                reward = 0
+            else: 
+                 T_ref = 1.5
+                 reward = -10* (T_a - 0)    
+            return reward
+        
+        def reward_weight_three_obj_over_E11_most():
+            """计算归一化后状态的距离范数奖励, 单目标
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_E11_most']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            # delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            r_E11 = 0
+            
+            E11 = self.energy_MYadjusted18502100_total_plus_B3B[-1] -E12 -E21 - E22 - E23 - E24
+                      
+            r_E11 = w['E11'] * self.normalized_E11_all(E11)
+            reward = (r_E11)
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            # self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            # self.state_history["reward_distance"].append(r_energy)
+            self.state_history["reward_extra1"].append(r_E11)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            # self.reward_dim2 = w['Ca'] * delta_PB_Ca 
+            self.reward_dim3 = r_E11
+            # 增加维度
+            # self.reward_dim4 = w["over"] * delta_PB_Ta 
+            # self.reward_dim5 = w["over"] * delta_PB_Ca
+            # self.reward_dim6 = r_end_energy
+            
+            return reward
+        
+        def reward_weight_three_obj_over_E11_most_cost():
+            """计算归一化后状态的距离范数奖励, 单目标
+            """
+            w = self.reward_weights['reward_weight_three_obj_over_E11_most_cost']
+            
+            T_a, C_a, C_o, C_od, T_o, E21, E22, E23, E24, E12 = self.state
+            
+            # delta_PB_Ta = self.normalized_state_Ta(1.5) - self.normalized_state_Ta(T_a)
+            # delta_PB_Ca = self.normalized_state_Ca(945) - self.normalized_state_Ca(C_a)
+            # delta_energy = self.normalized_energy_all(self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[self.t-1850]) - self.normalized_energy_all(self.energy_MYbaseline18502100_total_formulated[self.t-1850])
+            
+            reward = 0
+            r_E11 = 0
+            
+            E11 = self.energy_MYadjusted18502100_total_plus_B3B[-1] -E12 -E21 - E22 - E23 - E24
+                      
+            r_E11 = w['E11'] * self.normalized_E11_all(E11)
+            
+            # 增加对 cost of action 的估计
+            cost_of_action1 = 0
+            cost_of_action2 = 0
+            cost_of_action3 = 0
+            
+            dim1, dim2, dim3 = self.decode_action_to_multi_dim(self.action_cost_policy_cal)
+            if dim1 == 2:
+                cost_of_action1 = 10 # 104250 
+            if dim2 == 2:
+                cost_of_action2 = 14 # 142440
+            if dim3 == 2:
+                cost_of_action3 = 4 # 47220
+
+            Cost_action = (cost_of_action1 + cost_of_action2 + cost_of_action3) * w['cost_of_action']
+
+            reward = (r_E11 - Cost_action)
+
+            # 记录分维度奖励
+            # self.state_history["reward_Ta"].append(w['Ta'] * delta_PB_Ta ) # 基于已有的 reward 已经可以进行计算了
+            # self.state_history["reward_Ca"].append(w['Ca'] * delta_PB_Ca )
+            # self.state_history["reward_distance"].append(r_energy)
+            self.state_history["reward_extra1"].append(r_E11)
+            self.state_history["reward_extra2"].append(Cost_action)
+            
+            # 可以记录里面的 r_ta、 r_ca 和 distance
+            # self.reward_dim1 = w['Ta'] * delta_PB_Ta 
+            self.reward_dim2 = r_E11
+            self.reward_dim3 = Cost_action
+            # 增加维度
+            self.reward_dim4 = cost_of_action1
+            self.reward_dim5 = cost_of_action2
+            self.reward_dim6 = cost_of_action3
+            
+            return reward
+            
         # 通过选项返回函数，
         if reward_type == "PB_reward":
             return reward_PB_reward
@@ -1473,10 +2318,6 @@ class IEMEnv(gym.Env):
         #     return reward_multi_objective_all_energy_exp1013
         elif reward_type == "PB_compute_over_add":
             return reward_PB_compute_over_add
-        elif reward_type == "PB_compute_over_add_end":
-            return reward_PB_compute_over_add_end
-        elif reward_type == "PB_compute_over_low_threshold":
-            return reward_PB_compute_over_low_threshold
         
         elif reward_type == "multi_objective_all_T_a_Ca_exp122_weights_change_more_ta":
             return reward_multi_objective_all_T_a_Ca_exp122_weights_change_more_ta
@@ -1487,231 +2328,51 @@ class IEMEnv(gym.Env):
         
         elif reward_type == "PB_compute_over_2":
             return reward_PB_compute_over_2
+        
+        elif reward_type == "PB_compute_over_cost":
+            return reward_PB_compute_over_cost
+        elif reward_type == "PB_compute_over_cost_management":
+            return reward_PB_compute_over_cost_management
+
+        elif reward_type == "weight_three_obj":
+            return reward_weight_three_obj
+        elif reward_type == "weight_three_obj_over":
+            return reward_weight_three_obj_over
+        elif reward_type == "weight_three_obj_over_TaCaE11":
+            return reward_weight_three_obj_over_TaCaE11
+        
+        elif reward_type == "distance_without_normalized":
+            return reward_distance_without_normalized
+        elif reward_type == "distance_with_normalized":
+            return reward_distance_with_normalized
+        elif reward_type == "distance_with_normalized_over":
+            return reward_distance_with_normalized_over
+        
+        elif reward_type == "weight_three_obj_over_Ta":
+            return reward_weight_three_obj_over_Ta
+        elif reward_type == "weight_three_obj_over_Ca":
+            return reward_weight_three_obj_over_Ca
+        elif reward_type == "weight_three_obj_over_energy":
+            return reward_weight_three_obj_over_energy
+        elif reward_type == "weight_three_obj_over_energy_end":
+            return reward_weight_three_obj_over_energy_end
+        
+        elif reward_type == "distance_with_normalized_over_Ta":
+            return reward_distance_with_normalized_over_Ta
+        elif reward_type == "distance_with_normalized_over_Ca":
+            return reward_distance_with_normalized_over_Ca
+        elif reward_type == "distance_with_normalized_over_energy":
+            return reward_distance_with_normalized_over_energy
+        elif reward_type == "discrete_pb_ta":
+            return reward_discrete_pb_ta
+        elif reward_type == "weight_three_obj_over_E11_most":
+            return reward_weight_three_obj_over_E11_most
+        elif reward_type == "weight_three_obj_over_E11_most_cost":
+            return reward_weight_three_obj_over_E11_most_cost
 
         else:
             raise ValueError("没有对应的奖励函数")
-
-    def apply_action_iseec_multiple(self, action):
-        """主要是根据原文中设置的了几个 case 来进行设计
-        统一归类为一个维度
-
-        Args:
-            action (_type_): _description_
-        """
-
-        # if np.array_equal(action, np.array([0, 0, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
-        if action == 0:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([1, 0, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_default"
-        elif action == 1:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([0, 1, 0, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
-        elif action == 2:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([1, 1, 0, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_default"
-        elif action == 3:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 1 / 100
-        # elif np.array_equal(action, np.array([0, 0, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
-        elif action == 4:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([1, 0, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_default"
-        elif action == 5:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([0, 1, 1, 0])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
-        elif action == 6:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-
-        # elif np.array_equal(action, np.array([1, 1, 1, 0])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_default"
-        elif action == 7:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 1 / 100
-            self.eta0_22_drl = 1 / 100
-        # elif np.array_equal(action, np.array([0, 0, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
-        elif action == 8:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([1, 0, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_default + RenewableEnergyInvestment_Speed"
-        elif action == 9:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([0, 1, 0, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
-        elif action == 10:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([1, 1, 0, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_default + RenewableEnergyInvestment_Speed"
-        elif action == 11:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([0, 0, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif action == 12:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([1, 0, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_default + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif action == 13:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0
-            self.taoDF21_drl = 0
-            self.taoDV22_temp_drl = 0
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([0, 1, 1, 1])): # "SocialResponseTime_default + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif action == 14:
-            self.dE21_dt_drl = 6.03
-            self.dE22_dt_drl = 6.08
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        # elif np.array_equal(action, np.array([1, 1, 1, 1])): # "SocialResponseTime_Speed + RenewableEnergy_Speed + ACE_Speed + RenewableEnergyInvestment_Speed"
-        elif action == 15:
-            self.dE21_dt_drl = 0
-            self.dE22_dt_drl = 0
-
-            self.taoR21_drl = 0.6
-            self.taoDF21_drl = 0.6
-            self.taoDV22_temp_drl = 0.6
-
-            self.taoACE_drl = 0.6
-
-            self.eta0_21_drl = 2 / 100
-            self.eta0_22_drl = 2 / 100
-        else:
-            raise ValueError("没有对应的 action")
-
-        self.current_action = action.copy() if hasattr(action, "copy") else action
-
+        
     def decode_action_to_multi_dim(self, action):
         """将为分组的 action 转换为 分组的 action
         """
@@ -1744,36 +2405,102 @@ class IEMEnv(gym.Env):
     
         return dim1 * (dim2_choices * dim3_choices) + dim2 * dim3_choices + dim3
 
-    def apply_action_ste_sti(self, action):
+    # def apply_action_ste_sti_composite(self, action):
+    #     # Apply the action to the environment
+    #     dim1, dim2, dim3 = self.decode_action_to_multi_dim(action)
+    #     # 第一维度控制-技术推动变革
+    #     if dim1 == 0:
+    #         self.eta0_21_tech = 0.1 / 100
+    #         self.eta0_22_tech = 0.1 / 100
+    #     elif dim1 == 1:
+    #         self.eta0_21_tech = 1 / 100
+    #         self.eta0_22_tech = 1 / 100
+    #     elif dim1 == 2:
+    #         self.eta0_21_tech = 2 / 100
+    #         self.eta0_22_tech = 2 / 100
+    #     else:
+    #         raise ValueError("Invalid value for dim1: {}".format(dim1))
+            
+    #     # 第二维度控制 -温升敏感性
+    #     if dim2 == 0:
+    #         self.e21_temperature_warm_rate = 0.05
+    #         self.taoDF21_b2_temperature_warm_rate = 0.5
+    #         self.taoDV22_temperature_warm_rate = 0.5
+    #         self.taoACE_temperature_warm_rate = - 1.2
+    #     elif dim2 == 1:
+    #         self.e21_temperature_warm_rate = 2.0
+    #         self.taoDF21_b2_temperature_warm_rate = 2
+    #         self.taoDV22_temperature_warm_rate = 2
+    #         self.taoACE_temperature_warm_rate = 0
+    #     elif dim2 == 2:
+    #         self.e21_temperature_warm_rate = 4
+    #         self.taoDF21_b2_temperature_warm_rate = 5
+    #         self.taoDV22_temperature_warm_rate = 5
+    #         self.taoACE_temperature_warm_rate = 1.2
+    #     else:
+    #         raise ValueError("Invalid value for dim2: {}".format(dim2))
+            
+    #     # 第三维度控制 -社会响应时间
+    #     if dim3 == 0:
+    #         self.e21_response_time = 1 # 加速
+    #         self.taoDF21_b1 = 1
+    #         self.taoDV22_response_time = 1
+    #     elif dim3 == 1:
+    #         self.e21_response_time = 50
+    #         self.taoDF21_b1 = 25
+    #         self.taoDV22_response_time = 30
+    #     elif dim3 == 2:
+    #         self.e21_response_time = 80
+    #         self.taoDF21_b1 = 50
+    #         self.taoDV22_response_time = 60
+    #     else: 
+    #         raise ValueError("Invalid value for dim3: {}".format(dim3)) 
+        
+    def apply_action_ste_sti_composite_range_adjusted(self, action):
         # Apply the action to the environment
         dim1, dim2, dim3 = self.decode_action_to_multi_dim(action)
-        # 第一维度控制 re_temperature_warm_rate
+        # 第一维度控制-技术推动变革
         if dim1 == 0:
-            self.re_temperature_warm_rate = 0.001  # 低值
+            self.eta0_21_tech = 0.1 / 100
+            self.eta0_22_tech = 0.1 / 100
         elif dim1 == 1:
-            self.re_temperature_warm_rate = 0.005  # 中值
+            self.eta0_21_tech = 1 / 100
+            self.eta0_22_tech = 1 / 100
         elif dim1 == 2:
-            self.re_temperature_warm_rate = 0.018 # 高值
+            self.eta0_21_tech = 2 / 100
+            self.eta0_22_tech = 2 / 100
         else:
             raise ValueError("Invalid value for dim1: {}".format(dim1))
             
-        # 第二维度控制 e21_temperature_warm_rate
+        # 第二维度控制 -温升敏感性
         if dim2 == 0:
             self.e21_temperature_warm_rate = 0.05
+            self.taoDF21_b2_temperature_warm_rate = 0.5
+            self.taoDV22_temperature_warm_rate = 0.5
         elif dim2 == 1:
             self.e21_temperature_warm_rate = 2.0
+            self.taoDF21_b2_temperature_warm_rate = 2
+            self.taoDV22_temperature_warm_rate = 2
         elif dim2 == 2:
             self.e21_temperature_warm_rate = 4
+            self.taoDF21_b2_temperature_warm_rate = 5
+            self.taoDV22_temperature_warm_rate = 5
         else:
             raise ValueError("Invalid value for dim2: {}".format(dim2))
             
-        # 第三维度控制 e21_response_time
+        # 第三维度控制 -社会响应时间
         if dim3 == 0:
-            self.e21_response_time = 2
+            self.e21_response_time = 10 # 加速
+            self.taoDF21_b1 = 10
+            self.taoDV22_response_time = 15
         elif dim3 == 1:
             self.e21_response_time = 50
+            self.taoDF21_b1 = 25
+            self.taoDV22_response_time = 30
         elif dim3 == 2:
-            self.e21_response_time = 100
+            self.e21_response_time = 80
+            self.taoDF21_b1 = 50
+            self.taoDV22_response_time = 60
         else: 
             raise ValueError("Invalid value for dim3: {}".format(dim3)) 
             
@@ -1836,28 +2563,22 @@ class IEMEnv(gym.Env):
         # 额外的碳税收入部分
         self.carbon_tax_revenue = []
         self.carbon_tax_rate = 0  # 保证默认的可以运行
-
-        # 全用 action = 0 默认的来保证预热数据
-        # self.dE21_dt_drl = 6.03
-        # self.dE22_dt_drl = 6.08
-
-        # self.taoR21_drl = 0
-        # self.taoDF21_drl = 0
-        # self.taoDV22_temp_drl = 0
-
-        # self.taoACE_drl = 0
-
-        # self.eta0_21_drl = 1 / 100
-        # self.eta0_22_drl = 1 / 100
         
         # === ste 部分的设计 ===
-        self.re_temperature_warm_rate = 0.005
+        # action dim1
+        # self.re_temperature_warm_rate = 0.005
+        self.eta0_21_tech = 1 / 100
+        self.eta0_22_tech = 1 / 100
+        # action dim2
         self.e21_temperature_warm_rate = 2
+        self.taoDF21_b2_temperature_warm_rate = 2
+        self.taoDV22_temperature_warm_rate = 2
+        # self.taoACE_temperature_warm_rate = 0
+        # action dim3
         self.e21_response_time = 50 
-        # self.e21_difffusion_time = 25
-        # self.e21_start_up = 0.1/100
-        # self.e22_research_time = 30
-
+        self.taoDF21_b1 = 25
+        self.taoDV22_response_time = 30 
+        
         # 2. 重置时间和步数
         self.t = self.model_init_year
         self.steps = 0
@@ -1985,6 +2706,12 @@ class IEMEnv(gym.Env):
             "reward_Ta": [],
             "reward_Ca": [],
             "reward_distance": [],
+            "reward_cost_action": [],
+            "reward_extra1": [],
+            "reward_extra2": [],
+            "reward_extra3": [],
+            
+            # "single_energy_myajused_total_plus_B3B_plus_ACE3_lastest": [],
         }
 
         # 添加动作历史记录
@@ -2015,6 +2742,10 @@ class IEMEnv(gym.Env):
         self.state_history["reward_Ta"].append(None)
         self.state_history["reward_Ca"].append(None)
         self.state_history["reward_distance"].append(None)
+        self.state_history["reward_cost_action"].append(None)
+        self.state_history["reward_extra1"].append(None)
+        self.state_history["reward_extra2"].append(None)
+        self.state_history["reward_extra3"].append(None)
 
         # 开始自定义为了 z-score 的计算添加的高维部分
         self.obs_history = []
@@ -2046,7 +2777,8 @@ class IEMEnv(gym.Env):
         # self.apply_action(action) # 选择切换到底是哪个动作
         # self.apply_action_ste(action)
         # self.apply_action_iseec_multiple(action)
-        self.apply_action_ste_sti(action)
+        # self.apply_action_ste_sti(action)
+        self.apply_action_ste_sti_composite_range_adjusted(action)
         # self.apply_action_iseec_case_one(action)
 
         self.state = self.get_observation(next_t)  # 每次求解的 state 都是下一次
@@ -2055,6 +2787,15 @@ class IEMEnv(gym.Env):
         self.t = next_t
 
         # 计算奖励
+        self.action_cost_policy_cal = action # 给 cost of policy 来计算使用
+        # 增加对分维度 episode reward 变化结果的监控
+        self.reward_dim1 = 0
+        self.reward_dim2 = 0
+        self.reward_dim3 = 0
+        self.reward_dim4 = 0
+        self.reward_dim5 = 0
+        self.reward_dim6 = 0
+
         reward = self.reward_function()
 
         # Record state history - add this section
@@ -2108,6 +2849,14 @@ class IEMEnv(gym.Env):
                 "E24": self.state[8],
                 "E12": self.state[9],
             },
+            "reward": {
+                "dim1": self.reward_dim1,
+                "dim2": self.reward_dim2,
+                "dim3": self.reward_dim3,
+                "dim4": self.reward_dim4,
+                "dim5": self.reward_dim5,
+                "dim6": self.reward_dim6,
+            }
         }
 
         # 计算终止
@@ -2278,26 +3027,47 @@ class IEMEnv(gym.Env):
         C_a = self.state_history["C_a"]
         action = self.state_history["action"]
         reward = self.state_history["reward"]
-        action_dim1 = self.state_history.get("action_dim1", [])
-        action_dim2 = self.state_history.get("action_dim2", [])
-        action_dim3 = self.state_history.get("action_dim3", [])
+        reward_dim1_Ta = self.state_history["reward_Ta"]
+        reward_dim2_Ca = self.state_history["reward_Ca"]
+        reward_dim3_distance = self.state_history["reward_distance"]
+
+        action_dim1 = self.state_history["action_dim1"]
+        action_dim2 = self.state_history["action_dim2"]
+        action_dim3 = self.state_history["action_dim3"]
+        
+        # 能源的记录
+        E12 = self.state_history["E12"]
+        E21 = self.state_history["E21"]
+        E22 = self.state_history["E22"]
+        E23 = self.state_history["E23"]
+        E24 = self.state_history["E24"]
+        
+        energy_baseline = self.energy_MYbaseline18502100_total_formulated[-len(time):]
+        energy_adjusted = self.energy_MYadjusted18502100_total_plus_B3B_plus_ACE3[-len(time):]
 
         if not hasattr(self, "fig"):
+            import matplotlib.pyplot as plt
+            from matplotlib import gridspec
+
             plt.ion()
-            self.fig = plt.figure(figsize=(20, 14))
-            self.gs = gridspec.GridSpec(5, 3, height_ratios=[1, 1, 1, 1, 0.7])
+            self.fig = plt.figure(figsize=(20, 20))
+            self.gs = gridspec.GridSpec(7, 3, height_ratios=[1, 1, 1, 0.7, 1, 0.7, 0.7])
             self.axs = [
-                self.fig.add_subplot(self.gs[0, :]),
-                self.fig.add_subplot(self.gs[1, :]),
-                self.fig.add_subplot(self.gs[2, :]),
-                self.fig.add_subplot(self.gs[3, :]),
-                self.fig.add_subplot(self.gs[4, 0]),
-                self.fig.add_subplot(self.gs[4, 1]),
-                self.fig.add_subplot(self.gs[4, 2]),
+                self.fig.add_subplot(self.gs[0, :]),  # Temperature
+                self.fig.add_subplot(self.gs[1, :]),  # Carbon
+                self.fig.add_subplot(self.gs[2, :]),  # Energy
+                self.fig.add_subplot(self.gs[3, :]),  # Action 全局
+                self.fig.add_subplot(self.gs[4, :]),  # Total Reward
+                self.fig.add_subplot(self.gs[5, 0]),  # Reward dim1
+                self.fig.add_subplot(self.gs[5, 1]),  # Reward dim2
+                self.fig.add_subplot(self.gs[5, 2]),  # Reward dim3
+                self.fig.add_subplot(self.gs[6, 0]),  # Action dim1
+                self.fig.add_subplot(self.gs[6, 1]),  # Action dim2
+                self.fig.add_subplot(self.gs[6, 2]),  # Action dim3
             ]
 
         axs = self.axs
-        # 主图
+
         axs[0].cla()
         axs[0].set_title("Atmospheric Temperature Over Time")
         axs[0].plot(time, temp, "r-", linewidth=2, label="Temperature")
@@ -2316,42 +3086,103 @@ class IEMEnv(gym.Env):
         axs[1].legend()
         axs[1].grid(True)
 
+        # axs[2].cla()
+        # axs[2].set_title("Energy Trajectories")
+        # axs[2].plot(time, energy_baseline, label="Baseline Energy", color='blue')
+        # axs[2].plot(time, energy_adjusted, label="Adjusted Energy", color='orange')
+        # axs[2].set_xlabel("Time")
+        # axs[2].set_ylabel("Energy")
+        # axs[2].legend()
+        # axs[2].grid(True)
+        # 更改为绘制 energy 
         axs[2].cla()
-        axs[2].set_title("Actions Over Time")
-        axs[2].scatter(time, action)
+        axs[2].set_title("Fossil Fuel")
+        # axs[2].plot(time, energy_baseline, label="Baseline Energy", color='blue')
+        # 列表一一相减，需要列表推导式
+        axs[2].plot(time, [e_all - e12 - e21 - e22 - e23 - e24 for e_all, e12, e21, e22, e23, e24 in zip(energy_adjusted, E12, E21, E22, E23, E24)], label="E11", color='orange')
         axs[2].set_xlabel("Time")
-        axs[2].set_ylabel("Action")
+        axs[2].set_ylabel("Fossil Fuel")
+        axs[2].legend()
         axs[2].grid(True)
 
         axs[3].cla()
-        axs[3].set_title("Step Reward Over Time")
-        axs[3].plot(time, reward, "g-", linewidth=2, label="Reward")
+        axs[3].set_title("Action Over Time")
+        axs[3].scatter(time, action, color='blue')
         axs[3].set_xlabel("Time")
-        axs[3].set_ylabel("Reward")
-        axs[3].legend()
+        axs[3].set_ylabel("Action")
         axs[3].grid(True)
 
-        # 分维度 action 子图
         axs[4].cla()
-        axs[4].set_title("Action Dim 1")
-        axs[4].scatter(time, action_dim1)
+        axs[4].set_title("Step Reward Over Time")
+        axs[4].plot(time, reward, "g-", linewidth=2, label="Reward")
         axs[4].set_xlabel("Time")
-        axs[4].set_ylabel("Dim1")
+        axs[4].set_ylabel("Reward")
+        axs[4].legend()
+        axs[4].grid(True)
 
         axs[5].cla()
-        axs[5].set_title("Action Dim 2")
-        axs[5].scatter(time, action_dim2)
+        axs[5].set_title("Reward Dim 1 (T_a)")
+        # 设置判断，如果 reward_dim1_Ta 长度大于 2，才绘制
+        if len(reward_dim1_Ta) > 2:
+            axs[5].plot(time, reward_dim1_Ta, color='green')
+        else:
+            print("未记录 Reward Dim 1 (T_a)")
         axs[5].set_xlabel("Time")
-        axs[5].set_ylabel("Dim2")
+        axs[5].set_ylabel("Reward Ta")
+        axs[5].grid(True)
 
         axs[6].cla()
-        axs[6].set_title("Action Dim 3")
-        axs[6].scatter(time, action_dim3)
+        axs[6].set_title("Reward Dim 2 (C_a)")
+        # 设置判断，如果 reward_dim2_Ca 长度大于 2，才绘制
+        if len(reward_dim2_Ca) > 2:
+            axs[6].plot(time, reward_dim2_Ca, color='orange')
+        else:
+            print("未记录 Reward Dim 2 (C_a)")
         axs[6].set_xlabel("Time")
-        axs[6].set_ylabel("Dim3")
+        axs[6].set_ylabel("Reward Ca")
+        axs[6].grid(True)
+
+        axs[7].cla()
+        axs[7].set_title("Reward Dim 3 (Distance)")
+        # 设置判断，如果 reward_dim3_distance 长度大于 2，才绘制
+        if len(reward_dim3_distance) > 2:
+            axs[7].plot(time, reward_dim3_distance, color='purple')
+        else:
+            print("未记录 Reward Dim 3 (Distance)")
+        axs[7].set_xlabel("Time")
+        axs[7].set_ylabel("Distance")
+        axs[7].grid(True)
+
+        axs[8].cla()
+        axs[8].set_title("Action Dim 1")
+        axs[8].scatter(time, action_dim1)
+        axs[8].set_xlabel("Time")
+        axs[8].set_ylabel("Dim1")
+
+        axs[9].cla()
+        axs[9].set_title("Action Dim 2")
+        axs[9].scatter(time, action_dim2)
+        axs[9].set_xlabel("Time")
+        axs[9].set_ylabel("Dim2")
+
+        axs[10].cla()
+        axs[10].set_title("Action Dim 3")
+        axs[10].scatter(time, action_dim3)
+        axs[10].set_xlabel("Time")
+        axs[10].set_ylabel("Dim3")
 
         plt.tight_layout()
-        plt.pause(0.1)
+        # plt.pause(0.1)
+        plt.show()  # 添加这行来保持图形窗口
+        
+        # 保存绘制的图片
+        current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # 创建对应文件夹如果没有的话
+        os.makedirs("output/plots", exist_ok=True)
+        plt.savefig(f"output/plots/episode_render_plot_{current_time}.png")
+        plt.close()
+        # 打印保存路径
+        print(f"已保存绘制的图片到 output/plots/episode_render_plot_{current_time}.png")
 
     def close(self):
         """关闭图形"""
@@ -2372,3 +3203,4 @@ class IEMEnv(gym.Env):
     def get_variables(self):
         """获取变量"""
         return self.data
+
