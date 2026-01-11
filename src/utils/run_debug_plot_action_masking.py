@@ -12,6 +12,8 @@ import datetime
 from stable_baselines3.common.env_checker import check_env
 # 在代码最开始添加
 import os
+
+from torch.backends.cudnn import deterministic
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import os
@@ -991,14 +993,14 @@ def save_plot_evaluation_four_state(
 if __name__ == "__main__":
 
     # 自定义属性
-    custom_reward_type = "weight_three_obj_over"
-    rl_model_name = "DQN_re" # Shift_Backward_30 / fiexed_action13
+    custom_reward_type = "weight_three_obj_over_same"
+    rl_model_name = "DQN_Ta_seed30" # Shift_Backward_30 / fiexed_action13
     network_name = "default_net"
     all_episode_num = 1
     total_timesteps_diy = int(1e2)
     max_steps = 300
 
-    # SEED = 42 # 非必要不指定
+    SEED = 30 # 非必要不指定 (42: Ta 2.83)
 
     # 利用 gym 函数检查环境
     env = IEMEnv(reward_type=custom_reward_type)
@@ -1034,46 +1036,36 @@ if __name__ == "__main__":
         total_reward_extra2 = []
         total_reward_extra3 = []
         
-        # total_state_diy_energy_MYadjusted18502100_total_plus_B3B_plus_ACE3
         ##################################
 
         episode_reward = 0
 
-        obs, _ = env.reset(use_random_reset=False, seed=42, start_state=0)
+        obs, _ = env.reset(use_random_reset=False, seed=SEED, start_state=0)
         # obs = env.reset()  # 重置环境，获得初始状态
 
         for i in range(max_steps):
             print(f"Episode {episode}, Step {i}")
 
-            # action = 13
+            # action = 10
             # action = human_action_radicalness[i]  # 使用 human_action_guard 中的动作
+            # 设置固定种子值，确保结果可复现
+            # np.random.seed(SEED)
+            # env.action_space.seed(SEED) # 设置固定空间种子
             # action = env.action_space.sample()
             # === 加载训练好的模型 ===
-            log_name = "iseec_lx_v5_ste_without_masking_DQN_weight_three_obj_over_re_900000_default.zip"
+            log_name = "iseec_lx_v5_ste_without_masking_DQN_weight_three_obj_over_Ta_900000_default_seed30_20250830_181251.zip"
             model = DQN.load(f"./model/{log_name}", env=env)
             action, _ = model.predict(obs, deterministic=True)
             # === 对特定的 action 进行平移查看结果变化 ===
-            # action_array = np.array([26, 20, 22, 22, 22, 19, 19, 19, 19, 19, 19, 19, 19, 15, 15, 15, 6, 6, 8, 8,
-            #              20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15,
-            #              15, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 10, 10, 20, 20, 20,
-            #              10, 10, 20, 20, 20, 10, 10, 20, 20, 20, 10, 10, 20, 20, 20, 20, 10, 10, 20,
-            #              20, 20, 20, 20, 10, 8, 8]) # 结尾一般要多加一个数
+            # action_array = np.array([ 9, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 20, # 取 drl 运行结果通过 debug 保存
+            # 20, 20, 20, 20, 20, 20, 20,  9,  9,  9,  9,  9, 20,  9,  9,  9,  9,
+            # 9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+            # 9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9, 20,
+            # 20,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9, 9])
 
-            # # 向前移动 30 步
-            # shift_forward = np.roll(action_array, -30)
-            # shift_forward[-30:] = action_array[-1]
-
-            # # 向后移动 30 步
-            # shift_backward = np.roll(action_array, 30)
-            # shift_backward[:30] = action_array[0]
-
-            # # 生成 DataFrame
-            # df_shift_30 = pd.DataFrame({
-            #     'Original_Action': action_array,
-            #     'Shift_Forward_30': shift_forward,
-            #     'Shift_Backward_30': shift_backward
-            # })
-            # action = df_shift_30['Shift_Backward_30'][i]
+            # action_array = np.roll(action_array, -30)  # 直接手动计算
+            # # # 向前平移结果：直接手动计算
+            # action = action_array[i]  # 直接使用数组中的动作
             # =====================================
             
             obs, reward, done, _, info = env.step(action)  # 获得的应该是下一次的 state
