@@ -1,23 +1,148 @@
-# Realizing Adaptive Governance of Coupled Climate-Social Systems
+<div align="center">
 
-This repository provides the code, model structure, and example notebooks for the paper:
+# 🌍 Realizing Adaptive Governance of Coupled Climate-Social Systems
 
-> Xin Lin, Yi Lu, Donghai Zheng, Erhu Du, Zhen Meng, Ziyong Sun, Shiwei Yuan, Xin Li. Realizing adaptive governance of coupled climate-social systems: A deep reinforcement learning framework. *Geography and Sustainability*, 2026. https://doi.org/10.1016/j.geosus.2026.100519
+### A Deep Reinforcement Learning Framework
 
-The study develops a decision-making framework that integrates deep reinforcement learning (DRL) with an integrated assessment model (IAM). It is designed to explore adaptive governance pathways for coupled climate-social systems under planetary boundary constraints.
+---
 
-## About The Project
+**Xin Lin<sup>1</sup>, Yi Lu<sup>2</sup>, Donghai Zheng<sup>3</sup>, Erhu Du<sup>4</sup>, Zhen Meng<sup>5</sup>, Ziyong Sun<sup>6</sup>, Shiwei Yuan<sup>7</sup>, Xin Li<sup>8</sup>**
 
-![framework](https://github.com/user-attachments/assets/69185131-3aa3-4ebf-b4dc-18e6b56f0210)
+<sub>
+<sup>1–8</sup> See the published article for full author affiliations<br>
+</sub>
 
-The framework formulates climate-social governance as a Markov decision process (MDP), where policy interventions are represented as actions, the IAM provides system dynamics, and DRL agents learn adaptive strategies through repeated interaction with the simulated environment.
+<br>
 
-Key components include:
+[![Paper](https://img.shields.io/badge/Paper-Geography%20and%20Sustainability-2f6f9f?style=for-the-badge&logo=readthedocs&logoColor=white)](https://doi.org/10.1016/j.geosus.2026.100519)
+[![DOI](https://img.shields.io/badge/DOI-10.1016%2Fj.geosus.2026.100519-b31b1b?style=for-the-badge&logo=doi&logoColor=white)](https://doi.org/10.1016/j.geosus.2026.100519)
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-- A Gymnasium-compatible environment for the coupled IAM-DRL workflow.
-- PPO-based training examples using Stable-Baselines3.
-- Example notebooks for running, testing, and analyzing the framework.
-- Utilities for exporting simulation trajectories and plotting results.
+<br>
+
+This repository provides the **code, model structure, and example notebooks** for the paper:
+
+> **Xin Lin, Yi Lu, Donghai Zheng, Erhu Du, Zhen Meng, Ziyong Sun, Shiwei Yuan, and Xin Li.**  
+> *Realizing adaptive governance of coupled climate-social systems: A deep reinforcement learning framework.*  
+> **Geography and Sustainability**, 2026.  
+> https://doi.org/10.1016/j.geosus.2026.100519
+
+</div>
+
+---
+
+## Overview
+
+This study develops a decision-making framework that integrates **deep reinforcement learning (DRL)** with an **integrated assessment model (IAM)**. The framework is designed to explore adaptive governance pathways for coupled climate-social systems under planetary-boundary constraints.
+
+The climate-social governance problem is formulated as a **Markov decision process (MDP)**:
+
+- policy interventions are represented as actions;
+- the IAM provides the system dynamics;
+- DRL agents learn adaptive strategies through repeated interaction with the simulated environment;
+- reward functions encode sustainability, welfare, and planetary-boundary objectives.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/69185131-3aa3-4ebf-b4dc-18e6b56f0210" alt="Framework of the coupled IAM-DRL system" width="92%">
+</p>
+
+## Key Features
+
+- **Gymnasium-compatible environment** for the coupled IAM-DRL workflow.
+- **Stable-Baselines3 integration** for reinforcement-learning experiments.
+- **PPO and DQN examples** for model training and policy evaluation.
+- **Notebook-based workflows** for running, testing, and analyzing experiments.
+- **Trajectory export utilities** for downstream analysis.
+- **Visualization tools** for comparing governance scenarios and learned policies.
+
+## Quick Start
+
+### 1. Install dependencies
+
+The framework is built with Gymnasium and Stable-Baselines3. Install the core scientific Python stack before running the examples:
+
+```bash
+pip install gymnasium stable-baselines3 numpy pandas scipy matplotlib
+```
+
+### 2. Run the main script
+
+```bash
+python main.py
+```
+
+### 3. Explore the notebook
+
+Start with:
+
+```text
+run_main_DQN.ipynb
+```
+
+This notebook demonstrates the basic workflow, including environment initialization, agent interaction, training, and result analysis.
+
+## Basic Usage
+
+```python
+"""Common template for running the climate-social model with DRL."""
+
+import os
+import sys
+
+sys.path.append(os.path.abspath("src"))
+
+from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
+
+
+env = IEMEnv(
+    reward_type="PB_ste",       # Select or customize the reward function
+    control_start_year=2017,    # Year in which DRL begins controlling the system
+)
+
+obs, info = env.reset()
+
+for _ in range(max_steps):
+    action = env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)
+
+    if terminated or truncated:
+        break
+```
+
+## Adapting the Framework
+
+To apply the framework to a new research question, define the main MDP components:
+
+| Component | Description |
+|---|---|
+| **State space** | Variables describing the coupled climate-social system |
+| **Action space** | Governance or policy interventions available to the agent |
+| **Reward function** | Sustainability, welfare, resilience, or planetary-boundary objectives |
+| **Transition dynamics** | System evolution generated by the integrated assessment model |
+| **Episode settings** | Intervention start year, simulation horizon, and termination conditions |
+
+After the reward signal converges during training, the learned model weights can be saved and used for policy evaluation, trajectory analysis, and comparison across governance scenarios.
+
+## Repository Structure
+
+```text
+.
+├── config/                 # Configuration files
+├── data/                   # Input and validation data
+├── docs/                   # Project documentation
+├── model/                  # Example trained model artifacts
+├── scripts/                # Project setup and helper scripts
+├── src/
+│   ├── envs/               # Gymnasium environment implementation
+│   ├── utils/              # Plotting and export utilities
+│   ├── api/
+│   └── core/
+├── tests/                  # Environment tests
+├── main.py                 # Training entry point
+├── plot_analysis_articles.ipynb # plot the results
+└── run_main_DQN.ipynb      # Notebook example
+```
 
 ## Citation
 
@@ -34,86 +159,18 @@ If this repository is useful for your research, please cite the published articl
 }
 ```
 
-## How To Use
-
-The framework is built with Gymnasium and Stable-Baselines3. Install the required scientific Python stack before running the examples. Core dependencies include:
-
-- `gymnasium`
-- `stable-baselines3`
-- `numpy`
-- `pandas`
-- `scipy`
-- `matplotlib`
-
-You can start from the notebooks:
-
-- `run_main_DQN.ipynb`: basic workflow and environment interaction.
-
-You can also run the script entry point:
-
-```bash
-python main.py
-```
-
-### Basic Usage
-
-```python
-"""The common template to use DRL to run the model
-"""
-import os
-import sys
-
-sys.path.append(os.path.abspath("src"))
-
-from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
-
-env = IEMEnv(
-    reward_type="PB_ste", # for free to change your reward
-    control_start_year=2017, # the time drl to control the system
-)
-
-obs, info = env.reset()
-
-for _ in range(max_steps):
-    action = env.action_space.sample()
-    obs, reward, terminated, truncated, info = env.step(action)
-
-    if terminated or truncated:
-        break
-```
-
-To adapt the framework to a new research question, first identify the relevant MDP components:
-
-- State variables that describe the coupled climate-social system.
-- Action variables that represent governance or policy interventions.
-- Reward functions that encode planetary boundary, sustainability, or welfare objectives.
-- Episode settings, including the intervention start year and simulation horizon.
-
-After the reward signal converges during training, the learned model weights can be saved and used for policy evaluation, trajectory analysis, and comparison across governance scenarios.
-
-## Repository Structure
-
-```text
-|-- config/                 # Configuration files
-|-- data/                   # Input and validation data
-|-- docs/                   # Project documentation
-|-- model/                  # Example trained model artifacts
-|-- scripts/                # Project setup and helper scripts
-|-- src/
-|   |-- envs/               # Gymnasium environment implementation
-|   |-- utils/              # Plotting and export utilities
-|   |-- api/
-|   `-- core/
-|-- tests/                  # Environment tests
-|-- main.py                 # PPO training entry point
-|-- run_main_DQN.ipynb      # PPO notebook example
-```
-
-
 ## License
 
-This project is released under the MIT License. See `LICENSE` for details.
+This project is released under the [MIT License](LICENSE).
 
 ## Contact
 
-Xin Lin: peter.org3s@gmail.com | WeChat: peter-kinger
+For questions, collaborations, or feedback:
+
+**Xin Lin**  
+Email: [peter.org3s@gmail.com](mailto:peter.org3s@gmail.com)  
+WeChat: `peter-kinger`
+
+---
+
+
