@@ -1,100 +1,119 @@
-# Realizing Adaptive Governance of Coupled Climate-Social System through Deep Reinforcement Learning
-This repository contains the code and models for the research paper: 
+# Realizing Adaptive Governance of Coupled Climate-Social Systems
 
-"Realizing adaptive governance of coupled climate-social system through deep reinforcement learning".  TODO: links
+This repository provides the code, model structure, and example notebooks for the paper:
 
-Our study proposes a novel decision-making framework that integrates deep reinforcement learning (DRL) with an integrated assessment model (IAM) to explore adaptive governance pathways under planetary boundary (PB) constraints
+> Xin Lin, Yi Lu, Donghai Zheng, Erhu Du, Zhen Meng, Ziyong Sun, Shiwei Yuan, Xin Li. Realizing adaptive governance of coupled climate-social systems: A deep reinforcement learning framework. *Geography and Sustainability*, 2026. https://doi.org/10.1016/j.geosus.2026.100519
 
-# About The Project
+The study develops a decision-making framework that integrates deep reinforcement learning (DRL) with an integrated assessment model (IAM). It is designed to explore adaptive governance pathways for coupled climate-social systems under planetary boundary constraints.
+
+## About The Project
 
 ![framework](https://github.com/user-attachments/assets/69185131-3aa3-4ebf-b4dc-18e6b56f0210)
 
-Citation
----------------------
+The framework formulates climate-social governance as a Markov decision process (MDP), where policy interventions are represented as actions, the IAM provides system dynamics, and DRL agents learn adaptive strategies through repeated interaction with the simulated environment.
 
-**Please kindly cite the papers if this code is useful and helpful for your research.**
+Key components include:
 
-TODO: cite ref 
+- A Gymnasium-compatible environment for the coupled IAM-DRL workflow.
+- PPO-based training examples using Stable-Baselines3.
+- Example notebooks for running, testing, and analyzing the framework.
+- Utilities for exporting simulation trajectories and plotting results.
 
- TODO: bibtex   
- 
- @article{x}
+## Citation
 
-## How to use it?
+If this repository is useful for your research, please cite the published article:
 
-The framework is built using the package of stable-baseline3 and gymnasium, so you need to installs necessary packages in `requirements.txt`
+```bibtex
+@article{lin2026adaptive_governance_climate_social,
+  title   = {Realizing adaptive governance of coupled climate-social systems: A deep reinforcement learning framework},
+  author  = {Lin, Xin and Lu, Yi and Zheng, Donghai and Du, Erhu and Meng, Zhen and Sun, Ziyong and Yuan, Shiwei and Li, Xin},
+  journal = {Geography and Sustainability},
+  year    = {2026},
+  doi     = {10.1016/j.geosus.2026.100519},
+  url     = {https://doi.org/10.1016/j.geosus.2026.100519}
+}
+```
 
-Then you can run the main.ipynb, which contains the basic compoents of the framework. 
+## How To Use
 
-Reinforcement learning usually needs trains a lot of episodes to get a agent, having a good performance. In the supplyment of articles, we attach the table of hyperparamers.
+The framework is built with Gymnasium and Stable-Baselines3. Install the required scientific Python stack before running the examples. Core dependencies include:
 
-Our research primarily focuses on controlling agents to prevent them from exceeding planetary boundaries, which involves relevant MDP elements. Theoretically, however, you can freely modify the elements within the MDP based on our approach. The integration of DRL and IAM typically involves the following steps, summarized as follows:
+- `gymnasium`
+- `stable-baselines3`
+- `numpy`
+- `pandas`
+- `scipy`
+- `matplotlib`
+
+You can start from the notebooks:
+
+- `run_main_DQN.ipynb`: basic workflow and environment interaction.
+
+You can also run the script entry point:
+
+```bash
+python main.py
+```
 
 ### Basic Usage
-```python
-from iseec_lx_v4_mdp_plot import IEMEnv
 
-# 创建环境
+```python
+"""The common template to use DRL to run the model
+"""
+import os
+import sys
+
+sys.path.append(os.path.abspath("src"))
+
+from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
+
 env = IEMEnv(
-    reward_type="planet_boundaries_temperature",
-    control_start_year=2020  # 可选：设置政策干预开始年份
+    reward_type="PB_ste", # for free to change your reward
+    control_start_year=2017, # the time drl to control the system
 )
 
-# 重置环境
-obs = env.reset()
+obs, info = env.reset()
 
-# 运行环境
 for _ in range(max_steps):
-    action = env.action_space.sample()  # 或使用您的策略
-    obs, reward, done, _, info = env.step(action)
-    
-    if done:
+    action = env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)
+
+    if terminated or truncated:
         break
-
 ```
 
-If you intend to conduct research using our framework, you must first understand the components of the MDP. Then, follow the template to modify each section's components—such as defining appropriate actions, which involves translating the management measures relevant to your research question into actionable steps.
+To adapt the framework to a new research question, first identify the relevant MDP components:
 
-If you can successfully run the model using the framework described earlier, you can choose to observe the reward function until it converges, then save the corresponding model weights. These weights represent the neural network parameters learned by DRL through interaction with the environment.
+- State variables that describe the coupled climate-social system.
+- Action variables that represent governance or policy interventions.
+- Reward functions that encode planetary boundary, sustainability, or welfare objectives.
+- Episode settings, including the intervention start year and simulation horizon.
 
+After the reward signal converges during training, the learned model weights can be saved and used for policy evaluation, trajectory analysis, and comparison across governance scenarios.
 
-### Description of directory file structure
+## Repository Structure
 
-Below is an illustration of the fundamental file structure within our research framework. While there are numerous implementations of the DRL algorithm, the following approach encompasses comprehensive training and testing with subsequent analysis of results. Based on prior experience, I find this particularly well-suited for academic research analysis. The basic structure is outlined as follows:
-
+```text
+|-- config/                 # Configuration files
+|-- data/                   # Input and validation data
+|-- docs/                   # Project documentation
+|-- model/                  # Example trained model artifacts
+|-- scripts/                # Project setup and helper scripts
+|-- src/
+|   |-- envs/               # Gymnasium environment implementation
+|   |-- utils/              # Plotting and export utilities
+|   |-- api/
+|   `-- core/
+|-- tests/                  # Environment tests
+|-- main.py                 # PPO training entry point
+|-- run_main_DQN.ipynb      # PPO notebook example
 ```
-├─output
-│  └─PB_temperature
-│      ├─rl_model_fixed_network_Net256_no
-│      └─rl_model_fixed_network_Netxxx_no
-├─debug_use
-├─__pycache__
-├─model
-│  └─iseec_v4_PPO_Net256_2e4
-├─tests
-├─logs
-│  ├─sb3_log
-│  ├─monitor_logs
-│  └─tensorboard_logs
-│      ├─iseec_v4_PPO_Net256_2e4_1
-├─Archives
-│  └─copy 
-├─data
-│  ├─input_data
-│  └─validation_data
-├─src
-│  ├─envs
-│  └─utils
-│      ├─run_debug_csv.py (save the data to csv)
-│      └─run_debug_plot.py (plot the data using multiple methods)
-└─notebooks
-```
-This repository is still being actively updated. I will be adding tutorials to help you understand this research work. Please feel free to provide suggestions for improvement. Advancing DRL for decision-making in complex systems requires our collective effort.
 
-Licensing
----------
 
-Contact Information:
---------------------
-Xin Lin: peter.org3s@gmail.com | Wechat: peter-kinger
+## License
 
+This project is released under the MIT License. See `LICENSE` for details.
+
+## Contact
+
+Xin Lin: peter.org3s@gmail.com | WeChat: peter-kinger

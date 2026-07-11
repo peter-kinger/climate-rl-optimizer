@@ -11,34 +11,28 @@ import math
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3 import PPO
+from stable_baselines3 import DQN
 
 import sys
 import os
 
-# 将 src 目录添加到模块搜索路径
 sys.path.append(os.path.abspath("src"))
-
-# 导入 IEMEnv 类
-from src.envs.iseec_lx_v4_mdp_plot import IEMEnv
-
-# 设置日志保存路径和格式
+from src.envs.iseec_lx_v5_pomdp_without_masking_all_actions import IEMEnv
 
 
 tmp_path = "logs/sb3_log/"
 new_logger = configure(
     tmp_path,
     [
-        "stdout",  # 终端输出
-        "csv",  # CSV文件
-        "tensorboard",  # Tensorboard格式
-        "json",  # JSON格式
+        "stdout",  # Console logs
+        "csv",  # CSV logs
+        "tensorboard",  # TensorBoard logs
+        "json",  # JSON logs
     ],
 )
-env = IEMEnv(reward_type="PB_ste")
+env = IEMEnv(reward_type="weight_three_obj_over_same")
 env_monitor = Monitor(env, "./logs/monitor_logs/monitor2")
-# 定义模型
-model = PPO(
+model = DQN(
     "MlpPolicy",
     env_monitor,
     verbose=1,

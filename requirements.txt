@@ -1,0 +1,10 @@
+gymnasium
+stable-baselines3
+torch
+numpy
+pandas
+scipy
+matplotlib
+ipython
+pytest
+questionary
